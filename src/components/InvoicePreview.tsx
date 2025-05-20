@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -67,8 +68,7 @@ export function InvoicePreview({
     );
   };
 
-  const companyInfo = invoiceData?.issuerInfo;
-  if (!companyInfo) {
+  if (!invoiceData.issuerInfo) {
     return null; // or a fallback UI
   }
 

@@ -20,6 +20,7 @@ export interface Invoice {
   status: Status;
   paymentUrl?: string;
   total_amount?: number;
+  company_id?: string; // Added company_id property
 }
 
 export interface DiscountInfo {
@@ -78,6 +79,7 @@ export interface InvoiceData {
   signature?: SignatureData;
   signatureDate?: string;
   issuerInfo?: CompanyProfile;
+  serviceLines?: ServiceLine[]; // Added for backward compatibility
 }
 
 export type PaymentMethod = 'card' | 'transfer' | 'paypal' | 'check' | 'cash' | 'payoneer' | 'other';

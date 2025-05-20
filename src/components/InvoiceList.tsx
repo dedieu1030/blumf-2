@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { InvoiceDialog } from "./InvoiceDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -42,7 +43,7 @@ export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
   const fetchInvoices = async () => {
     try {
       setIsLoading(true);
-      // Use any type to bypass TypeScript restrictions
+      // Use type casting to bypass TypeScript restrictions
       const invoicesQuery = supabase.from('invoices') as any;
       const { data, error } = await invoicesQuery
         .select(`
@@ -73,7 +74,7 @@ export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
 
   const handleDelete = async (invoice: Invoice) => {
     try {
-      // Use any type to bypass TypeScript restrictions
+      // Use type casting to bypass TypeScript restrictions
       const invoicesQuery = supabase.from('invoices') as any;
       const { error } = await invoicesQuery
         .delete()
@@ -140,8 +141,7 @@ export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
 
   const handleStatusChange = async (invoice: Invoice, newStatus: Status) => {
     try {
-      const { error } = await supabase
-        .from('invoices')
+      const { error } = await (supabase.from('invoices') as any)
         .update({ status: newStatus })
         .eq('id', invoice.id);
       

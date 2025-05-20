@@ -29,6 +29,7 @@ import { SignatureCanvas } from "@/components/SignatureCanvas";
 import { SignatureSelector } from "@/components/SignatureSelector";
 import { SignatureDisplay } from "@/components/SignatureDisplay";
 import { createQuote, updateQuote, updateQuoteItems, fetchQuoteById, generateQuoteNumber } from '@/services/quoteService';
+import { savePaymentTermTemplate } from "@/services/paymentTermsService";
 
 // Define invoice template types
 const invoiceTemplates = [
