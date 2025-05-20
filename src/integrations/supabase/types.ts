@@ -36,6 +36,42 @@ export type Database = {
         }
         Relationships: []
       }
+      client_category_mappings: {
+        Row: {
+          category_id: string
+          client_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          category_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          category_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_category_mappings_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "client_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_category_mappings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -77,6 +113,100 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      invoices: {
+        Row: {
+          client_id: string
+          created_at: string
+          due_date: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          issue_date: string
+          status: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_invoices: {
+        Row: {
+          amount_total: number
+          client_id: string
+          created_at: string
+          currency: string
+          due_date: string | null
+          id: string
+          invoice_number: string
+          issued_date: string
+          paid_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_total: number
+          client_id: string
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          issued_date: string
+          paid_date?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          amount_total?: number
+          client_id?: string
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          issued_date?: string
+          paid_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

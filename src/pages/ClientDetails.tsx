@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -11,7 +12,7 @@ import { Loader2, ArrowLeft, Save, Mail, Phone, Building, Calendar, PlusCircle, 
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Client } from "@/components/ClientSelector";
+import { Client } from "@/types/user";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClientCategorySelector } from "@/components/ClientCategorySelector";
 import { ClientNotes } from "@/components/ClientNotes";
@@ -67,7 +68,13 @@ export default function ClientDetails() {
         if (error) throw error;
         
         if (data) {
-          setClient(data as Client);
+          // Ensure the client object has a name property matching client_name
+          const clientWithName = {
+            ...data,
+            name: data.client_name
+          } as Client;
+          
+          setClient(clientWithName);
           
           // Fetch client categories
           const { data: categoryData, error: categoryError } = await supabase
@@ -144,11 +151,13 @@ export default function ClientDetails() {
           category_id: categoryId
         }));
         
-        const { error: insertError } = await supabase
-          .from('client_category_mappings')
-          .insert(mappings);
-        
-        if (insertError) throw insertError;
+        for (const mapping of mappings) {
+          const { error: insertError } = await supabase
+            .from('client_category_mappings')
+            .insert(mapping);
+          
+          if (insertError) throw insertError;
+        }
       }
       
       // Refetch categories
@@ -214,7 +223,7 @@ export default function ClientDetails() {
     <>
       <Header 
         title="Détails du client"
-        description={client.name}
+        description={client?.name}
         onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
       />
       

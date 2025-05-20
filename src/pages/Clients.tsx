@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,7 @@ import MobileNavigation from "@/components/MobileNavigation";
 // Define Client type
 interface Client {
   id: string;
-  name?: string;
+  name: string;
   email: string | null;
   phone?: string | null;
   address?: string | null;

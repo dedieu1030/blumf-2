@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -141,7 +140,8 @@ export function SubscriptionForm({ open, onOpenChange, subscription, onUpdate }:
   
   const handleClientSelect = (client: Client) => {
     setClientId(client.id);
-    setClientName(client.name);
+    // Use client.name or client.client_name depending on what's available
+    setClientName(client.name || client.client_name);
   };
   
   const handleAddProduct = () => {
