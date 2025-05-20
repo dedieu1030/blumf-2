@@ -20,6 +20,7 @@ import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
+import { v4 as uuidv4 } from 'uuid';
 import {
   InvoiceData,
   ServiceLine,
@@ -27,7 +28,6 @@ import {
   CompanyProfile,
   PaymentTermTemplate,
 } from "@/types/invoice";
-import { v4 as uuidv4 } from 'uuid';
 import { InputCurrency } from "./ui/input-currency";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { PaymentTermsSelector } from "./PaymentTermsSelector";
@@ -233,6 +233,7 @@ export function InvoiceDialog({
         conclusionText,
         footerText,
         issuerInfo: companyProfile,
+        serviceLines: items,
       };
 
       // Here you would typically call your API to save the invoice data

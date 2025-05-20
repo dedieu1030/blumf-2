@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createQuote, updateQuote, updateQuoteItems, fetchQuoteById, generateQuoteNumber } from '@/services/quoteService';
 import { supabase } from "@/integrations/supabase/client";
@@ -49,42 +48,38 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
   useEffect(() => {
     if (editQuoteId && open) {
       setIsLoading(true);
-      fetchQuoteById(editQuoteId)
-        .then(quote => {
-          if (!quote) return;
-          
-          setQuoteNumber(quote.quote_number);
-          setIssueDate(quote.issue_date);
-          setValidityDate(quote.validity_date || '');
-          setExecutionDate(quote.execution_date || '');
-          setStatus(quote.status);
-          setClientId(quote.client_id || '');
-          setClientName(quote.client?.client_name || '');
-          setNotes(quote.notes || '');
-          
-          // Set items if available
-          if (quote.items && quote.items.length > 0) {
-            setQuoteItems(quote.items.map(item => ({
-              id: item.id,
-              quote_id: editQuoteId,
-              description: item.description,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.total_price,
-              created_at: item.created_at || new Date().toISOString()
-            })));
-          }
-          
-          // Calculate totals
-          calculateTotals();
-        })
-        .catch(error => {
-          console.error("Error fetching quote:", error);
-          toast("Impossible de charger les données du devis");
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+      fetchQuoteById(editQuoteId).then((quote) => {
+        if (!quote) return;
+        setQuoteNumber(quote.quote_number);
+        setIssueDate(quote.issue_date);
+        setValidityDate(quote.validity_date || '');
+        setExecutionDate(quote.execution_date || '');
+        setStatus(quote.status);
+        setClientId(quote.client_id);
+        setClientName(quote.client?.client_name || '');
+        setNotes(quote.notes || '');
+        
+        // Set items if available
+        if (quote.items && quote.items.length > 0) {
+          setQuoteItems(quote.items.map((item) => ({
+            id: item.id,
+            quote_id: item.quote_id,
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price,
+            created_at: item.created_at || new Date().toISOString()
+          })));
+        }
+        
+        // Calculate totals
+        calculateTotals();
+      }).catch((error) => {
+        console.error("Error fetching quote:", error);
+        toast.error("Impossible de charger les données du devis");
+      }).finally(() => {
+        setIsLoading(false);
+      });
     } else if (open) {
       // For new quotes, generate a new quote number
       setQuoteNumber(generateQuoteNumber());
@@ -95,20 +90,18 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
   const calculateTotals = () => {
     let subtotal = 0;
     let taxAmount = 0;
-
-    quoteItems.forEach(item => {
+    quoteItems.forEach((item) => {
       subtotal += item.quantity * item.unit_price;
       taxAmount += 0; // Assuming no tax for simplicity
     });
-
     setSubtotal(subtotal);
     setTaxAmount(taxAmount);
     setTotal(subtotal + taxAmount);
   };
 
   const handleItemChange = (id: string, field: keyof QuoteItem, value: any) => {
-    setQuoteItems(quoteItems => {
-      return quoteItems.map(item => {
+    setQuoteItems((quoteItems) => {
+      return quoteItems.map((item) => {
         if (item.id === id) {
           return { ...item, [field]: value };
         }
@@ -118,40 +111,43 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
   };
 
   const addItem = () => {
-    setQuoteItems(quoteItems => {
-      return [...quoteItems, {
-        id: Date.now().toString(),
-        quote_id: editQuoteId || '',
-        description: "",
-        quantity: 1,
-        unit_price: 0,
-        total_price: 0,
-        created_at: new Date().toISOString()
-      }];
+    setQuoteItems((quoteItems) => {
+      return [
+        ...quoteItems,
+        {
+          id: Date.now().toString(),
+          quote_id: editQuoteId || '',
+          description: "",
+          quantity: 1,
+          unit_price: 0,
+          total_price: 0,
+          created_at: new Date().toISOString()
+        }
+      ];
     });
   };
 
   const removeItem = (id: string) => {
-    setQuoteItems(quoteItems => {
-      return quoteItems.filter(item => item.id !== id);
+    setQuoteItems((quoteItems) => {
+      return quoteItems.filter((item) => item.id !== id);
     });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!clientId) {
-      toast("Veuillez sélectionner un client");
+      toast.error("Veuillez sélectionner un client");
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const quoteData = {
         quote_number: quoteNumber,
         client_id: clientId,
-        company_id: (await supabase.auth.getUser()).data.user?.id,
+        company_id: supabase.auth.getUser()?.data?.user?.id,
         issue_date: issueDate,
         validity_date: validityDate || undefined,
         execution_date: executionDate || undefined,
@@ -161,9 +157,8 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         total_amount: total,
         notes: notes
       };
-      
+
       let savedQuote;
-      
       if (editQuoteId) {
         // Update existing quote
         savedQuote = await updateQuote(editQuoteId, quoteData);
@@ -172,20 +167,17 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         // Create new quote
         savedQuote = await createQuote(quoteData, quoteItems);
       }
-      
-      toast(
-        editQuoteId ? "Devis mis à jour" : "Devis créé",
-        `Le devis ${quoteNumber} a été ${editQuoteId ? 'mis à jour' : 'créé'} avec succès.`
-      );
+
+      toast.success(editQuoteId ? "Devis mis à jour" : "Devis créé", {
+        description: `Le devis ${quoteNumber} a été ${editQuoteId ? 'mis à jour' : 'créé'} avec succès.`
+      });
       
       onSuccess?.();
-      onOpenChange(false);
     } catch (error) {
       console.error("Error saving quote:", error);
-      toast(
-        "Erreur",
-        `Une erreur s'est produite lors de ${editQuoteId ? 'la mise à jour' : 'la création'} du devis.`
-      );
+      toast.error("Erreur", {
+        description: `Une erreur s'est produite lors de ${editQuoteId ? 'la mise à jour' : 'la création'} du devis.`
+      });
     } finally {
       setIsSubmitting(false);
     }

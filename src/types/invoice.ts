@@ -1,8 +1,12 @@
-
 export interface SignatureData {
   points: Array<{x: number, y: number}>;
   width: number;
   height: number;
+  type?: 'drawn' | 'initials';
+  dataUrl?: string;
+  initials?: string;
+  name?: string;
+  timestamp?: string;
 }
 
 export type Status = "draft" | "pending" | "paid" | "overdue" | "cancelled";
@@ -164,4 +168,27 @@ export interface QuoteItem {
   unit_price: number;
   total_price: number;
   created_at?: string;
+}
+
+export interface ReminderSchedule {
+  id: string;
+  name: string;
+  triggers: ReminderTrigger[];
+  isDefault?: boolean;
+}
+
+export interface ReminderTrigger {
+  id: string;
+  daysBefore: number;
+  message: string;
+  enabled: boolean;
+}
+
+export interface InvoiceNumberingConfig {
+  prefix: string;
+  suffix: string;
+  pattern: string;
+  nextNumber: number;
+  resetPeriod: 'never' | 'monthly' | 'yearly';
+  lastReset?: string;
 }

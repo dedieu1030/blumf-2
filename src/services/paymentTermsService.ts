@@ -1,49 +1,54 @@
 
 import { PaymentTermTemplate } from "@/types/invoice";
+import { supabase } from "@/integrations/supabase/client";
 
-export const savePaymentTermTemplate = (template: PaymentTermTemplate, existingTemplates: PaymentTermTemplate[]): PaymentTermTemplate[] => {
-  // Check if template already exists
-  const existingIndex = existingTemplates.findIndex(t => t.id === template.id);
-  
-  if (existingIndex >= 0) {
-    // Update existing template
-    const updatedTemplates = [...existingTemplates];
-    updatedTemplates[existingIndex] = template;
-    
-    // Store in local storage
-    localStorage.setItem('paymentTermsTemplates', JSON.stringify(updatedTemplates));
-    
-    return updatedTemplates;
-  } else {
-    // Add new template
-    const newTemplates = [...existingTemplates, template];
-    
-    // Store in local storage
-    localStorage.setItem('paymentTermsTemplates', JSON.stringify(newTemplates));
-    
-    return newTemplates;
-  }
-};
-
-export const getPaymentTermsTemplates = (): PaymentTermTemplate[] => {
-  const savedTerms = localStorage.getItem('paymentTermsTemplates');
-  if (!savedTerms) return [];
-  
+export const getPaymentTermsTemplates = async (): Promise<PaymentTermTemplate[]> => {
   try {
-    return JSON.parse(savedTerms);
-  } catch (e) {
-    console.error("Error parsing payment terms templates", e);
+    // Exemple de templates par défaut
+    const defaultTemplates: PaymentTermTemplate[] = [
+      {
+        id: "immediate",
+        name: "Paiement immédiat",
+        days: 0,
+        description: "Paiement exigible à réception de la facture",
+        isDefault: true,
+        termsText: "Paiement exigible à réception de la facture"
+      },
+      {
+        id: "15days",
+        name: "15 jours",
+        days: 15,
+        description: "Paiement exigible dans les 15 jours",
+        termsText: "Paiement exigible dans les 15 jours suivant la réception de la facture"
+      },
+      {
+        id: "30days",
+        name: "30 jours",
+        days: 30,
+        description: "Paiement exigible dans les 30 jours",
+        termsText: "Paiement exigible dans les 30 jours suivant la réception de la facture"
+      },
+      {
+        id: "60days",
+        name: "60 jours",
+        days: 60,
+        description: "Paiement exigible dans les 60 jours",
+        termsText: "Paiement exigible dans les 60 jours suivant la réception de la facture"
+      }
+    ];
+
+    // Dans une vraie application, vous chargeriez les templates depuis la base de données
+    // const { data, error } = await supabase
+    //   .from('payment_terms_templates')
+    //   .select('*')
+    //   .order('days', { ascending: true });
+    
+    // if (error) throw error;
+    // return data as PaymentTermTemplate[];
+
+    return defaultTemplates;
+  } catch (error) {
+    console.error("Erreur lors du chargement des templates de paiement:", error);
     return [];
   }
-};
-
-export const setDefaultTemplate = (templateId: string, templates: PaymentTermTemplate[]): PaymentTermTemplate[] => {
-  const updatedTemplates = templates.map(t => ({
-    ...t,
-    isDefault: t.id === templateId
-  }));
-  
-  localStorage.setItem('paymentTermsTemplates', JSON.stringify(updatedTemplates));
-  
-  return updatedTemplates;
 };

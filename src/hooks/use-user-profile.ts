@@ -23,12 +23,12 @@ export function useUserProfile() {
         
         const userId = session.user.id;
         
-        // Récupérer le profil de l'utilisateur
+        // Récupérer le profil de l'utilisateur avec typecasting sécurisé
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
           
         if (error && error.code !== 'PGRST116') { // PGRST116 = No rows found
           throw error;

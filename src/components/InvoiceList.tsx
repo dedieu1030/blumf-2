@@ -4,19 +4,16 @@ import { InvoiceDialog } from "./InvoiceDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { InvoiceStatus } from "./InvoiceStatus";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, Eye, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useWindowSize } from "@/hooks/use-window-size";
 import { InvoiceMobileCard } from "./InvoiceMobileCard";
-import { InvoicePaymentLink } from "./InvoicePaymentLink";
 import { useNavigate } from "react-router-dom";
 import { Invoice, Status } from "@/types/invoice";
 
@@ -46,9 +43,9 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
     try {
       setIsLoading(true);
       
-      // Using any type to bypass TypeScript restrictions since we know the table exists
-      // but TypeScript doesn't know about the invoices table
-      const { data, error } = await (supabase as any).from('invoices')
+      // Utiliser une méthode TypeScript sûre pour accéder aux tables
+      const { data, error } = await supabase
+        .from('invoices')
         .select(`
           *,
           client:clients (id, client_name)
@@ -79,7 +76,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
         filteredData = filteredData.slice(0, limit);
       }
 
-      setInvoices(filteredData);
+      setInvoices(filteredData as Invoice[]);
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -94,7 +91,8 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
 
   const handleDelete = async (invoice: Invoice) => {
     try {
-      const { error } = await (supabase as any).from('invoices')
+      const { error } = await supabase
+        .from('invoices')
         .delete()
         .eq('id', invoice.id);
       
@@ -150,7 +148,8 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
 
   const handleStatusChange = async (invoice: Invoice, newStatus: Status) => {
     try {
-      const { error } = await (supabase as any).from('invoices')
+      const { error } = await supabase
+        .from('invoices')
         .update({ status: newStatus })
         .eq('id', invoice.id);
       
@@ -203,7 +202,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
               onViewClick={() => handleViewInvoice(invoice)}
               onEditClick={() => handleEditInvoice(invoice)}
               onDeleteClick={() => confirmDelete(invoice)}
-              onStatusChange={(newStatus) => handleStatusChange(invoice, newStatus as Status)}
+              onStatusChange={(newStatus) => handleStatusChange(invoice, newStatus)}
             />
           ))}
         </div>
@@ -275,6 +274,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           invoice={{
+            id: selectedInvoice.id,
             invoiceNumber: selectedInvoice.invoice_number,
             clientName: selectedInvoice.client?.client_name || '',
             items: [],

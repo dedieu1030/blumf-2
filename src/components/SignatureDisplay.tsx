@@ -38,5 +38,12 @@ export function SignatureDisplay({ signatureData, className = "", style = {} }: 
     );
   }
   
-  return null;
+  // Affichage par défaut pour les anciennes données de signature
+  return (
+    <div className={cn("flex flex-col items-center", className)} style={style}>
+      <div className="border p-2 w-[200px] h-[60px] flex items-center justify-center text-gray-400">
+        Signature
+      </div>
+    </div>
+  );
 }
