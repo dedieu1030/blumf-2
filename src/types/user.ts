@@ -5,12 +5,18 @@ export interface UserProfile {
   full_name: string;
   avatar_url: string | null;
   updated_at: string;
+  username?: string;
+  phone?: string;
   language?: string;
   timezone?: string;
-  notification_settings?: {
-    email_notifications: boolean;
-    push_notifications: boolean;
-  };
+  notification_settings?: NotificationSettings;
+  created_at?: string;
+}
+
+export interface NotificationSettings {
+  email_notifications: boolean;
+  push_notifications: boolean;
+  sms_notifications?: boolean;
 }
 
 export interface Client {

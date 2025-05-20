@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { UserProfile, NotificationSettings } from "@/types/user";
+import { UserProfile } from "@/types/user";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useTranslation } from 'react-i18next';
 
@@ -27,9 +27,9 @@ export function UserProfileForm({ initialData, onSave, onCancel }: UserProfileFo
     language: 'fr',
     timezone: 'Europe/Paris',
     notification_settings: {
-      email: true,
-      push: false,
-      sms: false
+      email_notifications: true,
+      push_notifications: false,
+      sms_notifications: false
     },
     ...initialData
   });
@@ -58,14 +58,14 @@ export function UserProfileForm({ initialData, onSave, onCancel }: UserProfileFo
   };
 
   // Fix the notification settings update to ensure all required properties are present
-  const updateNotificationSettings = (type: keyof NotificationSettings, value: boolean) => {
+  const updateNotificationSettings = (type: 'email_notifications' | 'push_notifications' | 'sms_notifications', value: boolean) => {
     setUserData(prev => ({
       ...prev,
       notification_settings: {
-        email: type === 'email' ? value : Boolean(prev.notification_settings?.email),
-        push: type === 'push' ? value : Boolean(prev.notification_settings?.push),
-        sms: type === 'sms' ? value : Boolean(prev.notification_settings?.sms)
-      } as NotificationSettings
+        email_notifications: type === 'email_notifications' ? value : Boolean(prev.notification_settings?.email_notifications),
+        push_notifications: type === 'push_notifications' ? value : Boolean(prev.notification_settings?.push_notifications),
+        sms_notifications: type === 'sms_notifications' ? value : Boolean(prev.notification_settings?.sms_notifications)
+      }
     }));
   };
 
@@ -85,19 +85,23 @@ export function UserProfileForm({ initialData, onSave, onCancel }: UserProfileFo
       // Ensure all required properties are present
       const updatedProfile: UserProfile = {
         id: user?.id || '',
-        username: userData.username || '',
-        full_name: userData.full_name,
-        avatar_url: userData.avatar_url || '',
-        email: userData.email,
+        full_name: userData.full_name || '',
+        avatar_url: userData.avatar_url || null,
+        email: userData.email || '',
         phone: userData.phone || '',
         language: userData.language || 'fr',
         timezone: userData.timezone || 'Europe/Paris',
         notification_settings: {
-          email: userData.notification_settings?.email !== undefined ? userData.notification_settings.email : true,
-          push: userData.notification_settings?.push !== undefined ? userData.notification_settings.push : false,
-          sms: userData.notification_settings?.sms !== undefined ? userData.notification_settings.sms : false
+          email_notifications: userData.notification_settings?.email_notifications !== undefined 
+            ? userData.notification_settings.email_notifications 
+            : true,
+          push_notifications: userData.notification_settings?.push_notifications !== undefined 
+            ? userData.notification_settings.push_notifications 
+            : false,
+          sms_notifications: userData.notification_settings?.sms_notifications !== undefined 
+            ? userData.notification_settings.sms_notifications 
+            : false
         },
-        created_at: user?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
@@ -176,24 +180,24 @@ export function UserProfileForm({ initialData, onSave, onCancel }: UserProfileFo
           <div className="flex items-center space-x-2">
             <Checkbox
               id="email-notifications"
-              checked={userData.notification_settings?.email || false}
-              onCheckedChange={(checked) => updateNotificationSettings('email', checked as boolean)}
+              checked={userData.notification_settings?.email_notifications || false}
+              onCheckedChange={(checked) => updateNotificationSettings('email_notifications', checked as boolean)}
             />
             <Label htmlFor="email-notifications">{t('emailNotifications')}</Label>
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="push-notifications"
-              checked={userData.notification_settings?.push || false}
-              onCheckedChange={(checked) => updateNotificationSettings('push', checked as boolean)}
+              checked={userData.notification_settings?.push_notifications || false}
+              onCheckedChange={(checked) => updateNotificationSettings('push_notifications', checked as boolean)}
             />
             <Label htmlFor="push-notifications">{t('pushNotifications')}</Label>
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="sms-notifications"
-              checked={userData.notification_settings?.sms || false}
-              onCheckedChange={(checked) => updateNotificationSettings('sms', checked as boolean)}
+              checked={userData.notification_settings?.sms_notifications || false}
+              onCheckedChange={(checked) => updateNotificationSettings('sms_notifications', checked as boolean)}
             />
             <Label htmlFor="sms-notifications">{t('smsNotifications')}</Label>
           </div>

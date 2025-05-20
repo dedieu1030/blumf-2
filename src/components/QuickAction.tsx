@@ -52,6 +52,8 @@ export const QuickAction = () => {
       <QuoteDialog
         open={quoteDialogOpen}
         onOpenChange={setQuoteDialogOpen}
+        editQuoteId={null}
+        onSuccess={() => {}}
       />
     </>
   );

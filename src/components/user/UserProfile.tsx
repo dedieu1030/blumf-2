@@ -80,9 +80,9 @@ export function UserProfile() {
     language: 'fr',
     timezone: 'Europe/Paris',
     notification_settings: {
-      email: true,
-      push: false,
-      sms: false
+      email_notifications: true,
+      push_notifications: false,
+      sms_notifications: false
     }
   };
   
@@ -193,9 +193,9 @@ export function UserProfile() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white border border-[#E0DAD3] rounded-xl p-4 relative">
                 <div className="absolute top-4 right-4">
-                  <Badge variant={displayProfile.notification_settings?.email ? "default" : "outline"} 
-                    className={displayProfile.notification_settings?.email ? "bg-green-500 hover:bg-green-600" : "text-muted-foreground"}>
-                    {displayProfile.notification_settings?.email ? 'Activé' : 'Désactivé'}
+                  <Badge variant={displayProfile.notification_settings?.email_notifications ? "default" : "outline"} 
+                    className={displayProfile.notification_settings?.email_notifications ? "bg-green-500 hover:bg-green-600" : "text-muted-foreground"}>
+                    {displayProfile.notification_settings?.email_notifications ? 'Activé' : 'Désactivé'}
                   </Badge>
                 </div>
                 <h4 className="font-medium mb-1">Notifications par email</h4>
@@ -206,9 +206,9 @@ export function UserProfile() {
               
               <div className="bg-white border border-[#E0DAD3] rounded-xl p-4 relative">
                 <div className="absolute top-4 right-4">
-                  <Badge variant={displayProfile.notification_settings?.push ? "default" : "outline"}
-                    className={displayProfile.notification_settings?.push ? "bg-green-500 hover:bg-green-600" : "text-muted-foreground"}>
-                    {displayProfile.notification_settings?.push ? 'Activé' : 'Désactivé'}
+                  <Badge variant={displayProfile.notification_settings?.push_notifications ? "default" : "outline"}
+                    className={displayProfile.notification_settings?.push_notifications ? "bg-green-500 hover:bg-green-600" : "text-muted-foreground"}>
+                    {displayProfile.notification_settings?.push_notifications ? 'Activé' : 'Désactivé'}
                   </Badge>
                 </div>
                 <h4 className="font-medium mb-1">Notifications push</h4>
@@ -219,9 +219,9 @@ export function UserProfile() {
               
               <div className="bg-white border border-[#E0DAD3] rounded-xl p-4 relative">
                 <div className="absolute top-4 right-4">
-                  <Badge variant={displayProfile.notification_settings?.sms ? "default" : "outline"}
-                    className={displayProfile.notification_settings?.sms ? "bg-green-500 hover:bg-green-600" : "text-muted-foreground"}>
-                    {displayProfile.notification_settings?.sms ? 'Activé' : 'Désactivé'}
+                  <Badge variant={displayProfile.notification_settings?.sms_notifications ? "default" : "outline"}
+                    className={displayProfile.notification_settings?.sms_notifications ? "bg-green-500 hover:bg-green-600" : "text-muted-foreground"}>
+                    {displayProfile.notification_settings?.sms_notifications ? 'Activé' : 'Désactivé'}
                   </Badge>
                 </div>
                 <h4 className="font-medium mb-1">Notifications SMS</h4>
