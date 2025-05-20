@@ -9,23 +9,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      client_categories: {
+      client_tag_mappings: {
         Row: {
-          color: string | null
+          client_id: string
+          tag_id: string
+        }
+        Insert: {
+          client_id: string
+          tag_id: string
+        }
+        Update: {
+          client_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_tag_mappings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_tag_mappings_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "client_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_tags: {
+        Row: {
+          color: string
+          company_id: string
           created_at: string
           id: string
           name: string
           updated_at: string
         }
         Insert: {
-          color?: string | null
+          color?: string
+          company_id: string
           created_at?: string
           id?: string
           name: string
           updated_at?: string
         }
         Update: {
-          color?: string | null
+          color?: string
+          company_id?: string
           created_at?: string
           id?: string
           name?: string
@@ -33,172 +66,146 @@ export type Database = {
         }
         Relationships: []
       }
-      client_category_mappings: {
-        Row: {
-          category_id: string
-          client_id: string
-        }
-        Insert: {
-          category_id: string
-          client_id: string
-        }
-        Update: {
-          category_id?: string
-          client_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_category_mappings_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "client_categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_category_mappings_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_groups: {
-        Row: {
-          company_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          name: string
-          type: Database["public"]["Enums"]["client_group_type"] | null
-          updated_at: string | null
-        }
-        Insert: {
-          company_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          type?: Database["public"]["Enums"]["client_group_type"] | null
-          updated_at?: string | null
-        }
-        Update: {
-          company_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          type?: Database["public"]["Enums"]["client_group_type"] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_groups_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       clients: {
         Row: {
           address: string | null
-          client_name: string
-          company_id: string | null
-          created_at: string | null
+          company_id: string
+          created_at: string
           email: string | null
-          group_id: string | null
           id: string
+          name: string
           notes: string | null
           phone: string | null
-          reference_number: string | null
-          updated_at: string | null
+          reference: string | null
+          status: string
+          updated_at: string
         }
         Insert: {
           address?: string | null
-          client_name: string
-          company_id?: string | null
-          created_at?: string | null
+          company_id: string
+          created_at?: string
           email?: string | null
-          group_id?: string | null
           id?: string
+          name: string
           notes?: string | null
           phone?: string | null
-          reference_number?: string | null
-          updated_at?: string | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
         }
         Update: {
           address?: string | null
-          client_name?: string
-          company_id?: string | null
-          created_at?: string | null
+          company_id?: string
+          created_at?: string
           email?: string | null
-          group_id?: string | null
           id?: string
+          name?: string
           notes?: string | null
           phone?: string | null
-          reference_number?: string | null
-          updated_at?: string | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "clients_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "clients_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "client_groups"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       companies: {
         Row: {
+          account_holder: string | null
           address: string | null
+          bank_account: string | null
+          bank_name: string | null
+          business_type: string | null
+          business_type_custom: string | null
           company_name: string
+          country: string | null
           created_at: string | null
+          default_currency: string | null
           email: string | null
+          email_type: string | null
           id: string
           logo_url: string | null
+          payoneer: string | null
+          paypal: string | null
           phone: string | null
+          profile_subtype: string | null
+          profile_type: string | null
+          registration_number: string | null
+          stripe_account_id: string | null
+          stripe_connected: boolean | null
+          tax_configuration: Json | null
+          terms_and_conditions: string | null
+          thank_you_message: string | null
           tps_number: string | null
           tvq_number: string | null
           updated_at: string | null
           user_id: string | null
+          vat_number: string | null
           website: string | null
         }
         Insert: {
+          account_holder?: string | null
           address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          business_type?: string | null
+          business_type_custom?: string | null
           company_name: string
+          country?: string | null
           created_at?: string | null
+          default_currency?: string | null
           email?: string | null
+          email_type?: string | null
           id?: string
           logo_url?: string | null
+          payoneer?: string | null
+          paypal?: string | null
           phone?: string | null
+          profile_subtype?: string | null
+          profile_type?: string | null
+          registration_number?: string | null
+          stripe_account_id?: string | null
+          stripe_connected?: boolean | null
+          tax_configuration?: Json | null
+          terms_and_conditions?: string | null
+          thank_you_message?: string | null
           tps_number?: string | null
           tvq_number?: string | null
           updated_at?: string | null
           user_id?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Update: {
+          account_holder?: string | null
           address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          business_type?: string | null
+          business_type_custom?: string | null
           company_name?: string
+          country?: string | null
           created_at?: string | null
+          default_currency?: string | null
           email?: string | null
+          email_type?: string | null
           id?: string
           logo_url?: string | null
+          payoneer?: string | null
+          paypal?: string | null
           phone?: string | null
+          profile_subtype?: string | null
+          profile_type?: string | null
+          registration_number?: string | null
+          stripe_account_id?: string | null
+          stripe_connected?: boolean | null
+          tax_configuration?: Json | null
+          terms_and_conditions?: string | null
+          thank_you_message?: string | null
           tps_number?: string | null
           tvq_number?: string | null
           updated_at?: string | null
           user_id?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Relationships: []
@@ -262,13 +269,6 @@ export type Database = {
           validity_date?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "devis_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "devis_company_id_fkey"
             columns: ["company_id"]
@@ -500,6 +500,8 @@ export type Database = {
       }
       invoices: {
         Row: {
+          amount_due: number | null
+          amount_paid: number | null
           client_id: string | null
           company_id: string | null
           created_at: string | null
@@ -522,6 +524,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          amount_due?: number | null
+          amount_paid?: number | null
           client_id?: string | null
           company_id?: string | null
           created_at?: string | null
@@ -544,6 +548,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          amount_due?: number | null
+          amount_paid?: number | null
           client_id?: string | null
           company_id?: string | null
           created_at?: string | null
@@ -566,13 +572,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "invoices_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "invoices_company_id_fkey"
             columns: ["company_id"]
@@ -628,69 +627,283 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_attempts: {
+        Row: {
+          amount: number
+          attempt_date: string
+          client_ip: string | null
+          created_at: string
+          currency: string
+          error_message: string | null
+          gateway_reference: string | null
+          gateway_response: Json | null
+          id: string
+          payment_id: string
+          payment_method_id: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          attempt_date?: string
+          client_ip?: string | null
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          gateway_reference?: string | null
+          gateway_response?: Json | null
+          id?: string
+          payment_id: string
+          payment_method_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          attempt_date?: string
+          client_ip?: string | null
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          gateway_reference?: string | null
+          gateway_response?: Json | null
+          id?: string
+          payment_id?: string
+          payment_method_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_attempts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_attempts_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_methods: {
+        Row: {
+          code: string
+          config: Json | null
+          created_at: string
+          description: string | null
+          display_order: number
+          gateway_code: string | null
+          icon: string | null
+          id: string
+          is_enabled: boolean
+          name: string
+          requires_gateway: boolean
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          code: string
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          gateway_code?: string | null
+          icon?: string | null
+          id?: string
+          is_enabled?: boolean
+          name: string
+          requires_gateway?: boolean
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: string
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          gateway_code?: string | null
+          icon?: string | null
+          id?: string
+          is_enabled?: boolean
+          name?: string
+          requires_gateway?: boolean
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_terms_templates: {
+        Row: {
+          created_at: string | null
+          custom_date: string | null
+          days_after_issue: number | null
+          delay: string
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          terms_text: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custom_date?: string | null
+          days_after_issue?: number | null
+          delay: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          terms_text: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custom_date?: string | null
+          days_after_issue?: number | null
+          delay?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          terms_text?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      payment_webhooks: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json
+          payment_id: string | null
+          processed_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload: Json
+          payment_id?: string | null
+          processed_at?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          payment_id?: string | null
+          processed_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_webhooks_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
+          attempts_count: number | null
           card_brand: string | null
           card_last4: string | null
           client_id: string | null
           company_id: string | null
           created_at: string
           currency: string | null
+          failure_reason: string | null
+          gateway_response: Json | null
+          gateway_status: string | null
           id: string
           invoice_id: string | null
+          is_partial: boolean | null
           payment_date: string | null
+          payment_link: string | null
           payment_method: string | null
+          payment_method_id: string | null
           payment_reference: string | null
           status: string
           stripe_payment_intent_id: string | null
           stripe_session_id: string | null
+          transaction_reference: string | null
           updated_at: string
         }
         Insert: {
           amount: number
+          attempts_count?: number | null
           card_brand?: string | null
           card_last4?: string | null
           client_id?: string | null
           company_id?: string | null
           created_at?: string
           currency?: string | null
+          failure_reason?: string | null
+          gateway_response?: Json | null
+          gateway_status?: string | null
           id?: string
           invoice_id?: string | null
+          is_partial?: boolean | null
           payment_date?: string | null
+          payment_link?: string | null
           payment_method?: string | null
+          payment_method_id?: string | null
           payment_reference?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
+          transaction_reference?: string | null
           updated_at?: string
         }
         Update: {
           amount?: number
+          attempts_count?: number | null
           card_brand?: string | null
           card_last4?: string | null
           client_id?: string | null
           company_id?: string | null
           created_at?: string
           currency?: string | null
+          failure_reason?: string | null
+          gateway_response?: Json | null
+          gateway_status?: string | null
           id?: string
           invoice_id?: string | null
+          is_partial?: boolean | null
           payment_date?: string | null
+          payment_link?: string | null
           payment_method?: string | null
+          payment_method_id?: string | null
           payment_reference?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
+          transaction_reference?: string | null
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "payments_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "payments_company_id_fkey"
             columns: ["company_id"]
@@ -703,6 +916,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           },
         ]
@@ -875,18 +1095,12 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "stripe_customers_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       stripe_invoices: {
         Row: {
+          amount_due: number | null
+          amount_paid: number | null
           amount_total: number
           client_id: string | null
           created_at: string
@@ -895,11 +1109,17 @@ export type Database = {
           id: string
           invoice_number: string
           issued_date: string
+          metadata: Json | null
           paid_date: string | null
           status: string
+          stripe_hosted_invoice_url: string | null
+          stripe_invoice_id: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
+          amount_due?: number | null
+          amount_paid?: number | null
           amount_total?: number
           client_id?: string | null
           created_at?: string
@@ -908,11 +1128,17 @@ export type Database = {
           id?: string
           invoice_number: string
           issued_date?: string
+          metadata?: Json | null
           paid_date?: string | null
           status?: string
+          stripe_hosted_invoice_url?: string | null
+          stripe_invoice_id?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
+          amount_due?: number | null
+          amount_paid?: number | null
           amount_total?: number
           client_id?: string | null
           created_at?: string
@@ -921,19 +1147,15 @@ export type Database = {
           id?: string
           invoice_number?: string
           issued_date?: string
+          metadata?: Json | null
           paid_date?: string | null
           status?: string
+          stripe_hosted_invoice_url?: string | null
+          stripe_invoice_id?: string | null
           updated_at?: string
+          user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "stripe_invoices_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       stripe_products: {
         Row: {
@@ -1089,15 +1311,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "subscriptions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       template_mappings: {
         Row: {
@@ -1127,13 +1341,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_client_categories: {
+      check_table_exists: {
+        Args: { table_name: string }
+        Returns: boolean
+      }
+      get_client_invoice_count: {
+        Args: { p_client_id: string }
+        Returns: number
+      }
+      get_client_tags: {
         Args: { p_client_id: string }
         Returns: {
-          category_id: string
-          category_name: string
-          category_color: string
+          tag_id: string
+          tag_name: string
+          tag_color: string
         }[]
+      }
+      get_current_user_profile: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_user_company_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
     }
     Enums: {
