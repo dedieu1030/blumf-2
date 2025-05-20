@@ -11,29 +11,6 @@ export interface SignatureData {
 
 export type Status = "draft" | "pending" | "paid" | "overdue" | "cancelled";
 
-export interface Invoice {
-  id: string;
-  number?: string;
-  invoice_number: string;
-  client_id?: string;
-  client_name?: string;
-  client?: { id: string; client_name: string };
-  amount: string;
-  date: string;
-  dueDate?: string;
-  status: Status;
-  paymentUrl?: string;
-  total_amount?: number;
-  company_id?: string;
-}
-
-export interface DiscountInfo {
-  type: 'percentage' | 'fixed';
-  value: number;
-  description?: string;
-  amount?: number;
-}
-
 export interface ServiceLine {
   id: string;
   description: string;
@@ -44,6 +21,13 @@ export interface ServiceLine {
   discount?: DiscountInfo;
   tva?: string;
   totalPrice?: number;
+}
+
+export interface DiscountInfo {
+  type: 'percentage' | 'fixed';
+  value: number;
+  description?: string;
+  amount?: number;
 }
 
 export interface InvoiceData {

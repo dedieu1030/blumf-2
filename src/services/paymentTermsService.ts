@@ -37,18 +37,23 @@ export const getPaymentTermsTemplates = async (): Promise<PaymentTermTemplate[]>
       }
     ];
 
-    // Dans une vraie application, vous chargeriez les templates depuis la base de données
-    // const { data, error } = await supabase
-    //   .from('payment_terms_templates')
-    //   .select('*')
-    //   .order('days', { ascending: true });
-    
-    // if (error) throw error;
-    // return data as PaymentTermTemplate[];
-
     return defaultTemplates;
   } catch (error) {
     console.error("Erreur lors du chargement des templates de paiement:", error);
     return [];
   }
+};
+
+export const savePaymentTermTemplate = async (template: PaymentTermTemplate): Promise<PaymentTermTemplate | null> => {
+  // This is a stub function for now, since we're using default templates
+  // In a real app, this would save to the database
+  console.log("Saving payment term template:", template);
+  return template;
+};
+
+export const setDefaultTemplate = async (templateId: string): Promise<boolean> => {
+  // This is a stub function for now, since we're using default templates
+  // In a real app, this would update the database
+  console.log("Setting default template:", templateId);
+  return true;
 };

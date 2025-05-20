@@ -16,10 +16,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react"; // Changed from radix-ui
 import { useToast } from "@/hooks/use-toast";
 import { DateRange } from "react-day-picker";
-import { addDays } from "date-fns";
 import { v4 as uuidv4 } from 'uuid';
 import {
   InvoiceData,
@@ -28,10 +27,29 @@ import {
   CompanyProfile,
   PaymentTermTemplate,
 } from "@/types/invoice";
-import { InputCurrency } from "./ui/input-currency";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { PaymentTermsSelector } from "./PaymentTermsSelector";
 import { getPaymentTermsTemplates } from "@/services/paymentTermsService";
+
+// A simple InputCurrency component since it's missing
+const InputCurrency = React.forwardRef<HTMLInputElement, 
+  { value: number; onValueChange: (value: number) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'>
+>((props, ref) => {
+  const { value, onValueChange, ...rest } = props;
+  
+  return (
+    <Input 
+      type="number"
+      value={value}
+      onChange={(e) => onValueChange(Number(e.target.value))}
+      ref={ref}
+      step="0.01"
+      {...rest}
+    />
+  );
+});
+
+InputCurrency.displayName = "InputCurrency";
 
 interface InvoiceDialogProps {
   open: boolean;
@@ -265,7 +283,9 @@ export function InvoiceDialog({
   };
 
   const handleDiscountTypeChange = (value: string) => {
-    setDiscountType(value as 'percentage' | 'fixed');
+    if (value === 'percentage' || value === 'fixed') {
+      setDiscountType(value);
+    }
   };
 
   return (

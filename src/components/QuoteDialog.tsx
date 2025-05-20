@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -16,20 +17,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react"; // Changed from @radix-ui/react-icons
 import { toast } from "sonner";
 import { createQuote, updateQuote, updateQuoteItems, fetchQuoteById, generateQuoteNumber } from '@/services/quoteService';
 import { supabase } from "@/integrations/supabase/client";
-import { QuoteItem } from "@/types/invoice";
 
-interface QuoteDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editQuoteId?: string;
-  onSuccess?: () => void;
-}
-
-export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: QuoteDialogProps) {
+export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }) {
   const [quoteNumber, setQuoteNumber] = useState("");
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [validityDate, setValidityDate] = useState("");
@@ -38,7 +31,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
   const [clientId, setClientId] = useState("");
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
-  const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
+  const [quoteItems, setQuoteItems] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
   const [taxAmount, setTaxAmount] = useState(0);
   const [total, setTotal] = useState(0);
@@ -63,12 +56,10 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         if (quote.items && quote.items.length > 0) {
           setQuoteItems(quote.items.map((item) => ({
             id: item.id,
-            quote_id: item.quote_id,
             description: item.description,
             quantity: item.quantity,
             unit_price: item.unit_price,
-            total_price: item.total_price,
-            created_at: item.created_at || new Date().toISOString()
+            total_price: item.total_price
           })));
         }
         
@@ -76,7 +67,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         calculateTotals();
       }).catch((error) => {
         console.error("Error fetching quote:", error);
-        toast.error("Impossible de charger les données du devis");
+        toast("Erreur: Impossible de charger les données du devis");
       }).finally(() => {
         setIsLoading(false);
       });
@@ -99,11 +90,14 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
     setTotal(subtotal + taxAmount);
   };
 
-  const handleItemChange = (id: string, field: keyof QuoteItem, value: any) => {
+  const handleItemChange = (id, field, value) => {
     setQuoteItems((quoteItems) => {
       return quoteItems.map((item) => {
         if (item.id === id) {
-          return { ...item, [field]: value };
+          return {
+            ...item,
+            [field]: value
+          };
         }
         return item;
       });
@@ -116,38 +110,34 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         ...quoteItems,
         {
           id: Date.now().toString(),
-          quote_id: editQuoteId || '',
           description: "",
           quantity: 1,
           unit_price: 0,
-          total_price: 0,
-          created_at: new Date().toISOString()
+          total_price: 0
         }
       ];
     });
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = (id) => {
     setQuoteItems((quoteItems) => {
       return quoteItems.filter((item) => item.id !== id);
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!clientId) {
-      toast.error("Veuillez sélectionner un client");
+      toast("Erreur: Veuillez sélectionner un client");
       return;
     }
 
     setIsSubmitting(true);
-
     try {
       const quoteData = {
         quote_number: quoteNumber,
         client_id: clientId,
-        company_id: supabase.auth.getUser()?.data?.user?.id,
+        company_id: (await supabase.auth.getUser()).data?.user?.id,
         issue_date: issueDate,
         validity_date: validityDate || undefined,
         execution_date: executionDate || undefined,
@@ -168,16 +158,11 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         savedQuote = await createQuote(quoteData, quoteItems);
       }
 
-      toast.success(editQuoteId ? "Devis mis à jour" : "Devis créé", {
-        description: `Le devis ${quoteNumber} a été ${editQuoteId ? 'mis à jour' : 'créé'} avec succès.`
-      });
-      
+      toast(editQuoteId ? "Devis mis à jour" : "Devis créé");
       onSuccess?.();
     } catch (error) {
       console.error("Error saving quote:", error);
-      toast.error("Erreur", {
-        description: `Une erreur s'est produite lors de ${editQuoteId ? 'la mise à jour' : 'la création'} du devis.`
-      });
+      toast("Erreur: Une erreur s'est produite lors de la sauvegarde du devis");
     } finally {
       setIsSubmitting(false);
     }
@@ -211,20 +196,21 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
                       "w-full justify-start text-left font-normal",
                       !issueDate && "text-muted-foreground"
                     )}
+                    disabled={isLoading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {issueDate ? format(new Date(issueDate), "P", { locale: enUS }) : (
+                    {issueDate ? format(new Date(issueDate), "P") : (
                       <span>Choisir une date</span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    locale={enUS}
                     selected={issueDate ? new Date(issueDate) : undefined}
-                    onSelect={(date) => setIssueDate(date?.toISOString().split('T')[0] || "")}
-                    disabled={isLoading}
+                    onSelect={(date) => {
+                      if (date) setIssueDate(date.toISOString().split('T')[0]);
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -243,74 +229,45 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
                       "w-full justify-start text-left font-normal",
                       !validityDate && "text-muted-foreground"
                     )}
+                    disabled={isLoading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {validityDate ? format(new Date(validityDate), "P", { locale: enUS }) : (
+                    {validityDate ? format(new Date(validityDate), "P") : (
                       <span>Choisir une date</span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    locale={enUS}
                     selected={validityDate ? new Date(validityDate) : undefined}
-                    onSelect={(date) => setValidityDate(date?.toISOString().split('T')[0] || "")}
-                    disabled={isLoading}
+                    onSelect={(date) => {
+                      if (date) setValidityDate(date.toISOString().split('T')[0]);
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
             <div>
-              <Label htmlFor="executionDate">Date d'exécution</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !executionDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {executionDate ? format(new Date(executionDate), "P", { locale: enUS }) : (
-                      <span>Choisir une date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    locale={enUS}
-                    selected={executionDate ? new Date(executionDate) : undefined}
-                    onSelect={(date) => setExecutionDate(date?.toISOString().split('T')[0] || "")}
-                    disabled={isLoading}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="status">Statut</Label>
+              <Select value={status} onValueChange={setStatus} disabled={isLoading}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Sélectionner un statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Brouillon</SelectItem>
+                  <SelectItem value="sent">Envoyé</SelectItem>
+                  <SelectItem value="accepted">Accepté</SelectItem>
+                  <SelectItem value="rejected">Refusé</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="status">Statut</Label>
-            <Select value={status} onValueChange={setStatus} disabled={isLoading}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Sélectionner un statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Brouillon</SelectItem>
-                <SelectItem value="sent">Envoyé</SelectItem>
-                <SelectItem value="accepted">Accepté</SelectItem>
-                <SelectItem value="rejected">Refusé</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="clientId">Client ID</Label>
+              <Label htmlFor="clientId">ID Client</Label>
               <Input
                 id="clientId"
                 value={clientId}
@@ -330,22 +287,10 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
           </div>
 
           <div>
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ajouter des notes ici..."
-              disabled={isLoading}
-            />
-          </div>
-
-          <div>
-            <Label>Items</Label>
+            <Label>Articles</Label>
             {quoteItems.map((item) => (
               <div key={item.id} className="grid grid-cols-5 gap-2 mb-2">
                 <Input
-                  type="text"
                   placeholder="Description"
                   value={item.description}
                   onChange={(e) => handleItemChange(item.id, "description", e.target.value)}
@@ -353,45 +298,59 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
                 />
                 <Input
                   type="number"
-                  placeholder="Quantity"
+                  placeholder="Quantité"
                   value={item.quantity}
                   onChange={(e) => handleItemChange(item.id, "quantity", Number(e.target.value))}
                   disabled={isLoading}
                 />
                 <Input
                   type="number"
-                  placeholder="Unit Price"
+                  placeholder="Prix unitaire"
                   value={item.unit_price}
                   onChange={(e) => handleItemChange(item.id, "unit_price", Number(e.target.value))}
                   disabled={isLoading}
                 />
                 <Input
                   type="number"
-                  placeholder="Total Price"
-                  value={item.total_price}
-                  onChange={(e) => handleItemChange(item.id, "total_price", Number(e.target.value))}
-                  disabled={isLoading}
+                  placeholder="Prix total"
+                  value={item.quantity * item.unit_price}
+                  readOnly
+                  disabled
                 />
-                <Button type="button" variant="destructive" size="sm" onClick={() => removeItem(item.id)} disabled={isLoading}>
+                <Button type="button" variant="destructive" onClick={() => removeItem(item.id)} disabled={isLoading}>
                   Supprimer
                 </Button>
               </div>
             ))}
-            <Button type="button" variant="secondary" size="sm" onClick={addItem} disabled={isLoading}>
-              Ajouter un item
+            <Button type="button" variant="outline" onClick={addItem} className="mt-2" disabled={isLoading}>
+              Ajouter un article
             </Button>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label>Subtotal: {subtotal}</Label>
+              <Label>Sous-total</Label>
+              <Input type="text" value={subtotal.toFixed(2) + " €"} disabled />
             </div>
             <div>
-              <Label>Tax Amount: {taxAmount}</Label>
+              <Label>TVA</Label>
+              <Input type="text" value={taxAmount.toFixed(2) + " €"} disabled />
             </div>
             <div>
-              <Label>Total: {total}</Label>
+              <Label>Total</Label>
+              <Input type="text" value={total.toFixed(2) + " €"} disabled />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ajouter des notes..."
+              disabled={isLoading}
+            />
           </div>
 
           <DialogFooter>
