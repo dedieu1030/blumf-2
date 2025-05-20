@@ -17,6 +17,11 @@ export const QuickAction = () => {
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  const handleQuoteSuccess = () => {
+    // Optionally implement any success handling logic
+    console.log('Quote created successfully');
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -53,7 +58,7 @@ export const QuickAction = () => {
         open={quoteDialogOpen}
         onOpenChange={setQuoteDialogOpen}
         editQuoteId={null}
-        onSuccess={() => {}}
+        onSuccess={handleQuoteSuccess}
       />
     </>
   );

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { QuoteDialog } from "./QuoteDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -157,6 +156,21 @@ export function QuoteList({ onRefresh, clientId, limit }: QuoteListProps) {
     setDialogOpen(false);
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'Brouillon';
+      case 'sent':
+        return 'Envoyé';
+      case 'accepted':
+        return 'Accepté';
+      case 'rejected':
+        return 'Refusé';
+      default:
+        return status;
+    }
+  };
+
   return (
     <div>
       {isLoading ? (
@@ -199,11 +213,11 @@ export function QuoteList({ onRefresh, clientId, limit }: QuoteListProps) {
                   </TableCell>
                   <TableCell>{quote.total_amount} €</TableCell>
                   <TableCell>
-                    <Badge variant={quote.status === 'accepted' ? 'success' : quote.status === 'rejected' ? 'destructive' : 'outline'}>
-                      {quote.status === 'draft' ? 'Brouillon' : 
-                       quote.status === 'sent' ? 'Envoyé' : 
-                       quote.status === 'accepted' ? 'Accepté' : 
-                       quote.status === 'rejected' ? 'Refusé' : quote.status}
+                    <Badge 
+                      variant="outline" 
+                      className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+                    >
+                      {getStatusText(quote.status)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

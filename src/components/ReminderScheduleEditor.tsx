@@ -25,7 +25,10 @@ export function ReminderScheduleEditor({ schedule, onSave, onCancel }: ReminderS
         triggerType: "days_before_due",
         triggerValue: 2,
         emailSubject: "Rappel de facture à venir",
-        emailBody: "Votre facture arrive à échéance dans 2 jours."
+        emailBody: "Votre facture arrive à échéance dans 2 jours.",
+        daysBefore: 2,
+        message: "Votre facture arrive à échéance dans 2 jours.",
+        enabled: true
       }
     ]
   );
@@ -38,7 +41,10 @@ export function ReminderScheduleEditor({ schedule, onSave, onCancel }: ReminderS
         triggerType: "days_before_due",
         triggerValue: 2,
         emailSubject: "Rappel de facture",
-        emailBody: "Ceci est un rappel concernant votre facture."
+        emailBody: "Ceci est un rappel concernant votre facture.",
+        daysBefore: 2,
+        message: "Ceci est un rappel concernant votre facture.",
+        enabled: true
       }
     ]);
   };

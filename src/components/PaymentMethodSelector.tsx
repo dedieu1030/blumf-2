@@ -1,135 +1,368 @@
-
-import React, { useState, useEffect } from 'react';
+import { PaymentMethodDetails, CompanyProfile } from '@/types/invoice';
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { PaymentMethodDetails, CompanyProfile } from "@/types/invoice";
-import { CreditCard, Banknote, Wallet, CreditCard as CheckIcon, DollarSign } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CreditCard, BanknoteIcon, ChevronsUpDown, Trash2 } from "lucide-react";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useTranslation } from "react-i18next";
 
 export interface PaymentMethodSelectorProps {
-  selectedMethods: PaymentMethodDetails[];
-  onMethodsChange: (methods: PaymentMethodDetails[]) => void;
-  companyProfile?: CompanyProfile;
+  methods: PaymentMethodDetails[];
+  onChange: (methods: PaymentMethodDetails[]) => void;
+  companyProfile: CompanyProfile;
+  onSaveDefault: (methods: PaymentMethodDetails[]) => void;
 }
 
-export function PaymentMethodSelector({ 
-  selectedMethods, 
-  onMethodsChange,
-  companyProfile 
-}: PaymentMethodSelectorProps) {
-  const [methods, setMethods] = useState<PaymentMethodDetails[]>([]);
+export function PaymentMethodSelector({ methods, onChange, companyProfile, onSaveDefault }: PaymentMethodSelectorProps) {
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<string>("bank");
   
-  // Translate payment method type to display name
-  const methodLabels: Record<string, string> = {
-    'card': 'Carte bancaire',
-    'transfer': 'Virement bancaire',
-    'paypal': 'PayPal',
-    'check': 'Chèque',
-    'cash': 'Espèces',
-    'payoneer': 'Payoneer', 
-    'other': 'Autre'
+  const handleMethodChange = (index: number, field: keyof PaymentMethodDetails, value: any) => {
+    const updatedMethods = [...methods];
+    updatedMethods[index] = {
+      ...updatedMethods[index],
+      [field]: value
+    };
+    onChange(updatedMethods);
   };
-
-  useEffect(() => {
-    // Initialize with selected methods or default methods
-    if (selectedMethods && selectedMethods.length > 0) {
-      setMethods(selectedMethods);
-    } else {
-      // Initialize with default empty methods
-      const defaultMethods: PaymentMethodDetails[] = [
-        { 
-          type: 'card', 
-          enabled: false,
-          details: 'Paiement sécurisé par carte bancaire'
-        },
-        { 
-          type: 'transfer', 
-          enabled: false,
-          details: companyProfile ? `Virement sur le compte ${companyProfile.bankAccount}` : 'Virement bancaire'
-        },
-        { 
-          type: 'paypal', 
-          enabled: false,
-          details: companyProfile?.paypal || 'Paiement via PayPal'
-        },
-        { 
-          type: 'check', 
-          enabled: false,
-          details: `Chèque à l'ordre de ${companyProfile?.accountHolder || '[Nom du bénéficiaire]'}`
-        },
-        { 
-          type: 'cash', 
-          enabled: false,
-          details: 'Paiement en espèces'
-        }
-      ];
-      setMethods(defaultMethods);
+  
+  const handleAddMethod = (type: string) => {
+    const newMethod: PaymentMethodDetails = {
+      type: type as any,
+      enabled: true,
+      details: '',
+    };
+    
+    // Add specific fields based on type
+    if (type === 'transfer') {
+      newMethod.bankName = companyProfile?.bankName || '';
+      newMethod.accountName = companyProfile?.accountHolder || '';
+      newMethod.accountNumber = companyProfile?.bankAccount || '';
+    } else if (type === 'paypal') {
+      newMethod.paypalEmail = companyProfile?.paypal || companyProfile?.email || '';
     }
-  }, [companyProfile]);
-
-  const handleMethodToggle = (index: number, enabled: boolean) => {
-    const updatedMethods = [...methods];
-    updatedMethods[index] = { ...updatedMethods[index], enabled };
-    setMethods(updatedMethods);
-    onMethodsChange(updatedMethods.filter(m => m.enabled));
+    
+    onChange([...methods, newMethod]);
+    setActiveTab(type);
   };
-
-  const handleMethodDetailsChange = (index: number, details: string) => {
-    const updatedMethods = [...methods];
-    updatedMethods[index] = { ...updatedMethods[index], details };
-    setMethods(updatedMethods);
-    onMethodsChange(updatedMethods.filter(m => m.enabled));
+  
+  const handleRemoveMethod = (index: number) => {
+    const updatedMethods = methods.filter((_, i) => i !== index);
+    onChange(updatedMethods);
   };
-
-  const renderMethodCard = (method: PaymentMethodDetails, index: number, Icon: React.ComponentType<any>, methodKey: string) => {
+  
+  const getMethodsByType = (type: string) => {
+    return methods.filter(method => method.type === type);
+  };
+  
+  const bankMethods = getMethodsByType('transfer');
+  const cardMethods = getMethodsByType('card');
+  const paypalMethods = getMethodsByType('paypal');
+  const checkMethods = getMethodsByType('check');
+  const cashMethods = getMethodsByType('cash');
+  const otherMethods = getMethodsByType('other');
+  
+  const renderBankTransferForm = (method: PaymentMethodDetails, index: number) => {
+    const methodIndex = methods.findIndex(m => m === method);
+    
     return (
-      <div key={methodKey} className="p-4 border rounded-lg">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
+          <div className="font-medium">{t('bankTransfer')}</div>
           <div className="flex items-center space-x-2">
-            <Icon className="h-5 w-5 text-primary" />
-            <Label htmlFor={`method-${methodKey}`}>{methodLabels[methodKey]}</Label>
+            <Switch 
+              checked={method.enabled} 
+              onCheckedChange={(checked) => handleMethodChange(methodIndex, 'enabled', checked)}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleRemoveMethod(methodIndex)}
+              className="text-destructive hover:text-destructive/90"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
-          <Switch
-            id={`method-${methodKey}`}
-            checked={method.enabled}
-            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
-          />
         </div>
         
-        {method.enabled && (
-          <div className="mt-2">
-            <Textarea
-              placeholder={`Instructions pour le paiement par ${methodLabels[methodKey].toLowerCase()}`}
-              value={method.details || ''}
-              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
-              className="h-20"
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor={`bank-name-${index}`}>{t('bankName')}</Label>
+            <Input 
+              id={`bank-name-${index}`}
+              value={method.bankName || ''} 
+              onChange={(e) => handleMethodChange(methodIndex, 'bankName', e.target.value)}
+              placeholder={t('enterBankName')}
             />
           </div>
-        )}
+          
+          <div>
+            <Label htmlFor={`account-name-${index}`}>{t('accountHolder')}</Label>
+            <Input 
+              id={`account-name-${index}`}
+              value={method.accountName || ''} 
+              onChange={(e) => handleMethodChange(methodIndex, 'accountName', e.target.value)}
+              placeholder={t('enterAccountHolder')}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor={`account-number-${index}`}>{t('accountNumber')}</Label>
+            <Input 
+              id={`account-number-${index}`}
+              value={method.accountNumber || ''} 
+              onChange={(e) => handleMethodChange(methodIndex, 'accountNumber', e.target.value)}
+              placeholder={t('enterAccountNumber')}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor={`iban-${index}`}>IBAN</Label>
+            <Input 
+              id={`iban-${index}`}
+              value={method.iban || ''} 
+              onChange={(e) => handleMethodChange(methodIndex, 'iban', e.target.value)}
+              placeholder={t('enterIBAN')}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor={`swift-${index}`}>SWIFT/BIC</Label>
+            <Input 
+              id={`swift-${index}`}
+              value={method.swift || ''} 
+              onChange={(e) => handleMethodChange(methodIndex, 'swift', e.target.value)}
+              placeholder={t('enterSWIFT')}
+            />
+          </div>
+        </div>
       </div>
     );
   };
-
+  
+  const renderPayPalForm = (method: PaymentMethodDetails, index: number) => {
+    const methodIndex = methods.findIndex(m => m === method);
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="font-medium">PayPal</div>
+          <div className="flex items-center space-x-2">
+            <Switch 
+              checked={method.enabled} 
+              onCheckedChange={(checked) => handleMethodChange(methodIndex, 'enabled', checked)}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleRemoveMethod(methodIndex)}
+              className="text-destructive hover:text-destructive/90"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        <div>
+          <Label htmlFor={`paypal-email-${index}`}>{t('paypalEmail')}</Label>
+          <Input 
+            id={`paypal-email-${index}`}
+            value={method.paypalEmail || ''} 
+            onChange={(e) => handleMethodChange(methodIndex, 'paypalEmail', e.target.value)}
+            placeholder={t('enterPayPalEmail')}
+          />
+        </div>
+      </div>
+    );
+  };
+  
+  const renderOtherMethodForm = (method: PaymentMethodDetails, index: number) => {
+    const methodIndex = methods.findIndex(m => m === method);
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="font-medium">
+            {method.type === 'card' ? t('creditCard') : 
+             method.type === 'check' ? t('check') :
+             method.type === 'cash' ? t('cash') : t('otherPaymentMethod')}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch 
+              checked={method.enabled} 
+              onCheckedChange={(checked) => handleMethodChange(methodIndex, 'enabled', checked)}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleRemoveMethod(methodIndex)}
+              className="text-destructive hover:text-destructive/90"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        <div>
+          <Label htmlFor={`details-${index}`}>{t('paymentDetails')}</Label>
+          <Input 
+            id={`details-${index}`}
+            value={method.details || ''} 
+            onChange={(e) => handleMethodChange(methodIndex, 'details', e.target.value)}
+            placeholder={t('enterPaymentDetails')}
+          />
+        </div>
+      </div>
+    );
+  };
+  
   return (
-    <div className="space-y-4">
-      {methods.map((method, index) => {
-        if (method.type === 'card') {
-          return renderMethodCard(method, index, CreditCard, 'card');
-        }
-        if (method.type === 'transfer') {
-          return renderMethodCard(method, index, Banknote, 'transfer');
-        }
-        if (method.type === 'paypal') {
-          return renderMethodCard(method, index, Wallet, 'paypal');
-        }
-        if (method.type === 'check') {
-          return renderMethodCard(method, index, CheckIcon, 'check');
-        }
-        if (method.type === 'cash') {
-          return renderMethodCard(method, index, DollarSign, 'cash');
-        }
-        return null;
-      })}
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-3 mb-4">
+          <TabsTrigger value="bank">{t('bankTransfer')}</TabsTrigger>
+          <TabsTrigger value="paypal">PayPal</TabsTrigger>
+          <TabsTrigger value="other">{t('otherMethods')}</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="bank" className="space-y-4">
+          {bankMethods.length > 0 ? (
+            bankMethods.map((method, index) => (
+              <Card key={index}>
+                <CardContent className="pt-4">
+                  {renderBankTransferForm(method, index)}
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Button 
+              variant="outline" 
+              onClick={() => handleAddMethod('transfer')}
+              className="w-full"
+            >
+              <BanknoteIcon className="mr-2 h-4 w-4" />
+              {t('addBankTransfer')}
+            </Button>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="paypal" className="space-y-4">
+          {paypalMethods.length > 0 ? (
+            paypalMethods.map((method, index) => (
+              <Card key={index}>
+                <CardContent className="pt-4">
+                  {renderPayPalForm(method, index)}
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Button 
+              variant="outline" 
+              onClick={() => handleAddMethod('paypal')}
+              className="w-full"
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              {t('addPayPal')}
+            </Button>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="other" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {cardMethods.length > 0 ? (
+              cardMethods.map((method, index) => (
+                <Card key={index}>
+                  <CardContent className="pt-4">
+                    {renderOtherMethodForm(method, index)}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Button 
+                variant="outline" 
+                onClick={() => handleAddMethod('card')}
+                className="w-full"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {t('addCreditCard')}
+              </Button>
+            )}
+            
+            {checkMethods.length > 0 ? (
+              checkMethods.map((method, index) => (
+                <Card key={index}>
+                  <CardContent className="pt-4">
+                    {renderOtherMethodForm(method, index)}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Button 
+                variant="outline" 
+                onClick={() => handleAddMethod('check')}
+                className="w-full"
+              >
+                <ChevronsUpDown className="mr-2 h-4 w-4" />
+                {t('addCheck')}
+              </Button>
+            )}
+            
+            {cashMethods.length > 0 ? (
+              cashMethods.map((method, index) => (
+                <Card key={index}>
+                  <CardContent className="pt-4">
+                    {renderOtherMethodForm(method, index)}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Button 
+                variant="outline" 
+                onClick={() => handleAddMethod('cash')}
+                className="w-full"
+              >
+                <BanknoteIcon className="mr-2 h-4 w-4" />
+                {t('addCash')}
+              </Button>
+            )}
+            
+            {otherMethods.length > 0 ? (
+              otherMethods.map((method, index) => (
+                <Card key={index}>
+                  <CardContent className="pt-4">
+                    {renderOtherMethodForm(method, index)}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Button 
+                variant="outline" 
+                onClick={() => handleAddMethod('other')}
+                className="w-full"
+              >
+                <ChevronsUpDown className="mr-2 h-4 w-4" />
+                {t('addOtherMethod')}
+              </Button>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+      
+      <div className="flex justify-end">
+        <Button onClick={() => onSaveDefault(methods)}>
+          {t('saveAsDefault')}
+        </Button>
+      </div>
     </div>
   );
 }

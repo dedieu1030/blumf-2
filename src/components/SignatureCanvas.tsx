@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import SignaturePad from 'signature_pad';
 import { Button } from "@/components/ui/button";
@@ -176,7 +175,7 @@ export function SignatureCanvas({ onSignatureChange, signatureData, userName = "
     return () => window.removeEventListener('resize', handleResize);
   }, [signatureType]);
   
-  // Fonction pour sauvegarder la signature
+  // Update the saveSignature function to match our SignatureData type
   const saveSignature = () => {
     if (signatureType === 'drawn' && signaturePadRef.current) {
       if (signaturePadRef.current.isEmpty()) {
@@ -190,11 +189,14 @@ export function SignatureCanvas({ onSignatureChange, signatureData, userName = "
         const timestamp = new Date().toISOString();
         
         // Créer l'objet de données de signature
-        const newSignatureData = {
+        const newSignatureData: SignatureData = {
           type: 'drawn' as const,
           dataUrl,
           name,
-          timestamp
+          timestamp,
+          points: [], // Initialize with empty points array
+          width: canvasRef.current?.width || 300,
+          height: canvasRef.current?.height || 200
         };
         
         // Enregistrer dans localStorage pour réutilisation future
@@ -213,11 +215,14 @@ export function SignatureCanvas({ onSignatureChange, signatureData, userName = "
       const timestamp = new Date().toISOString();
       
       // Créer l'objet de données pour les initiales
-      const newSignatureData = {
+      const newSignatureData: SignatureData = {
         type: 'initials' as const,
         initials: initials.trim(),
         name,
-        timestamp
+        timestamp,
+        points: [], // Initialize with empty points array
+        width: 200,
+        height: 100
       };
       
       // Enregistrer dans localStorage pour réutilisation future
