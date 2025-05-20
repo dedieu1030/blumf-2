@@ -1,59 +1,83 @@
 
 import { PaymentTermTemplate } from "@/types/invoice";
-import { supabase } from "@/integrations/supabase/client";
 
-export const getPaymentTermsTemplates = async (): Promise<PaymentTermTemplate[]> => {
-  try {
-    // Exemple de templates par défaut
-    const defaultTemplates: PaymentTermTemplate[] = [
-      {
-        id: "immediate",
-        name: "Paiement immédiat",
-        days: 0,
-        description: "Paiement exigible à réception de la facture",
-        isDefault: true,
-        termsText: "Paiement exigible à réception de la facture"
-      },
-      {
-        id: "15days",
-        name: "15 jours",
-        days: 15,
-        description: "Paiement exigible dans les 15 jours",
-        termsText: "Paiement exigible dans les 15 jours suivant la réception de la facture"
-      },
-      {
-        id: "30days",
-        name: "30 jours",
-        days: 30,
-        description: "Paiement exigible dans les 30 jours",
-        termsText: "Paiement exigible dans les 30 jours suivant la réception de la facture"
-      },
-      {
-        id: "60days",
-        name: "60 jours",
-        days: 60,
-        description: "Paiement exigible dans les 60 jours",
-        termsText: "Paiement exigible dans les 60 jours suivant la réception de la facture"
-      }
-    ];
-
-    return defaultTemplates;
-  } catch (error) {
-    console.error("Erreur lors du chargement des templates de paiement:", error);
-    return [];
+// Mock payment terms data
+const mockPaymentTerms: PaymentTermTemplate[] = [
+  {
+    id: "1",
+    name: "À réception",
+    days: 0,
+    description: "Paiement à réception de la facture",
+    isDefault: true,
+    termsText: "Paiement à réception de la facture."
+  },
+  {
+    id: "2",
+    name: "15 jours",
+    days: 15,
+    description: "Paiement sous 15 jours",
+    isDefault: false,
+    termsText: "Paiement sous 15 jours à partir de la date de réception de la facture."
+  },
+  {
+    id: "3",
+    name: "30 jours",
+    days: 30,
+    description: "Paiement sous 30 jours",
+    isDefault: false,
+    termsText: "Paiement sous 30 jours à partir de la date de réception de la facture."
+  },
+  {
+    id: "4",
+    name: "60 jours",
+    days: 60,
+    description: "Paiement sous 60 jours",
+    isDefault: false,
+    termsText: "Paiement sous 60 jours à partir de la date de réception de la facture."
   }
+];
+
+// Function to get all payment terms templates
+export const getPaymentTermsTemplates = async (): Promise<PaymentTermTemplate[]> => {
+  // Mock API call
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(mockPaymentTerms);
+    }, 500);
+  });
 };
 
-export const savePaymentTermTemplate = async (template: PaymentTermTemplate): Promise<PaymentTermTemplate | null> => {
-  // This is a stub function for now, since we're using default templates
-  // In a real app, this would save to the database
-  console.log("Saving payment term template:", template);
-  return template;
+// Function to save a payment term template
+export const savePaymentTermTemplate = async (template: PaymentTermTemplate): Promise<PaymentTermTemplate> => {
+  // Mock API call
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Generate ID if it's a new template
+      const savedTemplate = {
+        ...template,
+        id: template.id || `new-${Date.now()}`
+      };
+      resolve(savedTemplate);
+    }, 500);
+  });
 };
 
+// Function to set a template as default
 export const setDefaultTemplate = async (templateId: string): Promise<boolean> => {
-  // This is a stub function for now, since we're using default templates
-  // In a real app, this would update the database
-  console.log("Setting default template:", templateId);
-  return true;
+  // Mock API call
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(true);
+    }, 500);
+  });
+};
+
+// Function to delete a payment term template
+export const deletePaymentTermTemplate = async (templateId: string): Promise<boolean> => {
+  // Mock API call
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(true);
+    }, 500);
+  });
 };

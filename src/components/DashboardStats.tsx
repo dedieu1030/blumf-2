@@ -14,9 +14,12 @@ export function DashboardStats({ overdueInvoices = [] }: DashboardStatsProps) {
 
   // Calculate the total amount of overdue invoices
   const totalOverdueAmount = overdueInvoices.reduce((sum, invoice) => {
-    // Extract the numeric value from the amount string (removing currency symbol and commas)
-    const amountNumeric = parseFloat(invoice.amount.replace(/[€,$,\s]/g, '').replace(',', '.'));
-    return !isNaN(amountNumeric) ? sum + amountNumeric : sum;
+    // Check if amount is a number or string, and convert to number
+    const amountValue = typeof invoice.amount === 'string' 
+      ? parseFloat(String(invoice.amount).replace(/[€,$,\s]/g, '').replace(',', '.')) 
+      : invoice.amount;
+      
+    return !isNaN(amountValue) ? sum + amountValue : sum;
   }, 0);
 
   // Data for dashboard stats - in a real application these would come from API calls

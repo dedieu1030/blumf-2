@@ -1,124 +1,94 @@
 
-import React, { useState, useEffect } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { PaymentTermTemplate } from '@/types/invoice';
-import { getPaymentTermsTemplates, savePaymentTermTemplate, setDefaultTemplate } from '@/services/paymentTermsService';
+import { getPaymentTermsTemplates } from "@/services/paymentTermsService";
+import { PaymentTermTemplate } from "@/types/invoice";
 
 interface PaymentTermsSelectorProps {
-  selectedTermId?: string;
-  customTerms?: string;
   onSelect: (template: PaymentTermTemplate) => void;
-  onCustomTermsChange?: (terms: string) => void;
+  customTerms: string;
+  onCustomTermsChange: (terms: string) => void;
+  selectedTemplateId?: string;
 }
 
-export function PaymentTermsSelector({ 
-  selectedTermId, 
-  customTerms = "", 
-  onSelect, 
-  onCustomTermsChange 
+export function PaymentTermsSelector({
+  onSelect,
+  customTerms,
+  onCustomTermsChange,
+  selectedTemplateId
 }: PaymentTermsSelectorProps) {
   const [templates, setTemplates] = useState<PaymentTermTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<PaymentTermTemplate | null>(null);
-  const [isCustom, setIsCustom] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(selectedTemplateId || "");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     async function loadTemplates() {
+      setIsLoading(true);
       try {
-        const loadedTemplates = await getPaymentTermsTemplates();
-        setTemplates(loadedTemplates);
+        const paymentTermTemplates = await getPaymentTermsTemplates();
+        setTemplates(paymentTermTemplates);
         
-        // Set initial selected template
-        if (selectedTermId) {
-          const template = loadedTemplates.find(t => t.id === selectedTermId);
-          if (template) {
-            setSelectedTemplate(template);
-          }
-        } else {
-          // Set default template
-          const defaultTemplate = loadedTemplates.find(t => t.isDefault);
+        // Select default template if none is selected
+        if (!selectedTemplate) {
+          const defaultTemplate = paymentTermTemplates.find(t => t.isDefault);
           if (defaultTemplate) {
-            setSelectedTemplate(defaultTemplate);
+            setSelectedTemplate(defaultTemplate.id);
             onSelect(defaultTemplate);
           }
         }
       } catch (error) {
-        console.error("Failed to load payment terms templates:", error);
+        console.error("Error loading payment terms:", error);
       } finally {
         setIsLoading(false);
       }
     }
     
     loadTemplates();
-  }, [selectedTermId, onSelect]);
+  }, []);
 
-  const handleTemplateChange = (templateId: string) => {
-    if (templateId === 'custom') {
-      setIsCustom(true);
-      setSelectedTemplate(null);
-    } else {
-      setIsCustom(false);
-      const template = templates.find(t => t.id === templateId);
-      if (template) {
-        setSelectedTemplate(template);
-        onSelect(template);
-      }
-    }
-  };
-
-  const handleCustomTermsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (onCustomTermsChange) {
-      onCustomTermsChange(e.target.value);
+  const handleTemplateChange = (value: string) => {
+    setSelectedTemplate(value);
+    const template = templates.find(t => t.id === value);
+    if (template) {
+      onSelect(template);
     }
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="paymentTerms">Conditions de paiement</Label>
-        <Select
-          value={isCustom ? 'custom' : selectedTemplate?.id}
+        <Label>Conditions de paiement</Label>
+        <RadioGroup 
+          value={selectedTemplate} 
           onValueChange={handleTemplateChange}
+          className="mt-2 space-y-2"
           disabled={isLoading}
         >
-          <SelectTrigger className="w-full" id="paymentTerms">
-            <SelectValue placeholder="Sélectionner des conditions de paiement" />
-          </SelectTrigger>
-          <SelectContent>
-            {templates.map((template) => (
-              <SelectItem key={template.id} value={template.id}>
-                {template.name} ({template.days} jours)
-              </SelectItem>
-            ))}
-            <SelectItem value="custom">Personnalisé</SelectItem>
-          </SelectContent>
-        </Select>
+          {templates.map((template) => (
+            <div key={template.id} className="flex items-center space-x-2">
+              <RadioGroupItem value={template.id} id={`term-${template.id}`} />
+              <Label htmlFor={`term-${template.id}`} className="cursor-pointer">
+                <span className="font-medium">{template.name}</span>
+                <span className="ml-2 text-gray-500">({template.description})</span>
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
       </div>
 
-      {isCustom && (
-        <div>
-          <Label htmlFor="customTerms">Conditions personnalisées</Label>
-          <Textarea
-            id="customTerms"
-            value={customTerms}
-            onChange={handleCustomTermsChange}
-            placeholder="Entrez vos conditions de paiement personnalisées..."
-            className="min-h-[100px]"
-          />
-        </div>
-      )}
-
-      {selectedTemplate && !isCustom && (
-        <div className="p-4 bg-muted/50 rounded-md">
-          <p className="font-medium">{selectedTemplate.name}</p>
-          <p className="text-sm text-muted-foreground mt-1">{selectedTemplate.termsText}</p>
-        </div>
-      )}
+      <div>
+        <Label htmlFor="customTerms">Termes personnalisés</Label>
+        <Textarea
+          id="customTerms"
+          value={customTerms}
+          onChange={(e) => onCustomTermsChange(e.target.value)}
+          placeholder="Entrez des termes personnalisés pour cette facture..."
+          disabled={isLoading}
+          className="mt-1"
+        />
+      </div>
     </div>
   );
 }

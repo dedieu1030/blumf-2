@@ -1,4 +1,3 @@
-
 export interface SignatureData {
   points: Array<{x: number, y: number}>;
   width: number;
@@ -75,7 +74,7 @@ export interface Invoice {
   invoice_number: string;
   client_id: string;
   client_name?: string;
-  amount: number;
+  amount: number | string;
   date: string;
   due_date?: string;
   status: Status;
@@ -83,6 +82,10 @@ export interface Invoice {
   reminder_sent_date?: string;
   created_at?: string;
   updated_at?: string;
+  client?: {
+    id: string;
+    client_name: string;
+  };
 }
 
 export type PaymentMethod = 'card' | 'transfer' | 'paypal' | 'check' | 'cash' | 'payoneer' | 'other';

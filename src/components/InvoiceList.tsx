@@ -49,46 +49,46 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
           id: "1",
           invoice_number: "INV-001",
           client_id: "client1",
-          client: { id: "client1", client_name: "SCI Legalis" },
-          amount: "1,200.00",
+          amount: 1200,
           date: "2023-05-01",
-          status: "paid"
+          status: "paid",
+          client: { id: "client1", client_name: "SCI Legalis" }
         },
         {
           id: "2",
           invoice_number: "INV-002",
           client_id: "client2",
-          client: { id: "client2", client_name: "Cabinet Lefort" },
-          amount: "850.00",
+          amount: 850,
           date: "2023-05-03",
-          status: "pending"
+          status: "pending",
+          client: { id: "client2", client_name: "Cabinet Lefort" }
         },
         {
           id: "3",
           invoice_number: "INV-003",
           client_id: "client3",
-          client: { id: "client3", client_name: "Me. Dubois" },
-          amount: "1,400.00",
+          amount: 1400,
           date: "2023-05-05",
-          status: "overdue"
+          status: "overdue",
+          client: { id: "client3", client_name: "Me. Dubois" }
         },
         {
           id: "4",
           invoice_number: "INV-004",
           client_id: "client4",
-          client: { id: "client4", client_name: "Cabinet Moreau" },
-          amount: "950.00",
+          amount: 950,
           date: "2023-05-10",
-          status: "pending"
+          status: "pending",
+          client: { id: "client4", client_name: "Cabinet Moreau" }
         },
         {
           id: "5",
           invoice_number: "DRAFT-001",
           client_id: "client5",
-          client: { id: "client5", client_name: "Me. Martin" },
-          amount: "950.00",
+          amount: 950,
           date: "2023-05-12",
-          status: "draft"
+          status: "draft",
+          client: { id: "client5", client_name: "Me. Martin" }
         }
       ];
 
@@ -242,7 +242,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
                       'N/A'
                     )}
                   </TableCell>
-                  <TableCell>{invoice.amount} €</TableCell>
+                  <TableCell>{typeof invoice.amount === 'number' ? `${invoice.amount} €` : invoice.amount}</TableCell>
                   <TableCell>
                     <InvoiceStatus status={invoice.status} />
                   </TableCell>
@@ -287,7 +287,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
             subtotal: 0,
             taxRate: 0,
             taxAmount: 0,
-            total: parseFloat(selectedInvoice.amount) || 0
+            total: typeof selectedInvoice.amount === 'number' ? selectedInvoice.amount : parseFloat(String(selectedInvoice.amount).replace(/[€,$,\s]/g, '').replace(',', '.')) || 0
           }}
           onSuccess={handleDialogSuccess}
         />

@@ -279,6 +279,20 @@ export function InvoiceDialog({
     }
   };
 
+  function setDateFromCalendar(date: Date | undefined) {
+    setInvoiceDate(date);
+    // Set due date to be 30 days after invoice date as default
+    if (date) {
+      const dueDateTime = new Date(date);
+      dueDateTime.setDate(dueDateTime.getDate() + 30);
+      setDueDate(dueDateTime);
+    } else {
+      setDueDate(undefined);
+    }
+    
+    setDate({ from: date, to: date ? new Date(date.getTime() + 30 * 24 * 60 * 60 * 1000) : undefined });
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
@@ -553,10 +567,4 @@ export function InvoiceDialog({
       </DialogContent>
     </Dialog>
   );
-
-  function setDateFromCalendar(date: Date | undefined) {
-    setDate({ from: date, to: date });
-    setInvoiceDate(date);
-    setDueDate(date);
-  }
 }

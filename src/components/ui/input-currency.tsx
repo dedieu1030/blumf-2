@@ -1,18 +1,19 @@
 
-import React from 'react';
+import * as React from "react";
 import { Input } from "./input";
 
-interface InputCurrencyProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
-  value?: number;
-  onValueChange?: (value: number) => void;
+export interface InputCurrencyProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
+  value: number;
+  onValueChange: (value: number) => void;
+  currency?: string;
 }
 
 export const InputCurrency = React.forwardRef<HTMLInputElement, InputCurrencyProps>(
-  ({ value = 0, onValueChange, ...props }, ref) => {
+  ({ value, onValueChange, currency = "€", ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = parseFloat(e.target.value) || 0;
-      if (onValueChange) {
-        onValueChange(value);
+      const newValue = e.target.value === '' ? 0 : parseFloat(e.target.value);
+      if (!isNaN(newValue)) {
+        onValueChange(newValue);
       }
     };
 
@@ -21,8 +22,8 @@ export const InputCurrency = React.forwardRef<HTMLInputElement, InputCurrencyPro
         type="number"
         value={value}
         onChange={handleChange}
-        ref={ref}
         step="0.01"
+        ref={ref}
         {...props}
       />
     );

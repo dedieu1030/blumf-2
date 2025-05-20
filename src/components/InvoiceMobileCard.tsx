@@ -29,7 +29,7 @@ export function InvoiceMobileCard({
         <div className="flex justify-between items-start mb-2">
           <div>
             <div className="font-medium">{invoice.invoice_number}</div>
-            <div className="text-sm text-gray-500">{invoice.client?.client_name}</div>
+            <div className="text-sm text-gray-500">{invoice.client?.client_name || invoice.client_name || 'N/A'}</div>
           </div>
           <InvoiceStatus status={invoice.status} />
         </div>
@@ -37,7 +37,7 @@ export function InvoiceMobileCard({
         <div className="flex justify-between mt-2">
           <div className="text-sm">
             <div>Date: {invoice.date ? new Date(invoice.date).toLocaleDateString() : 'N/A'}</div>
-            <div className="font-medium">Montant: {invoice.amount} €</div>
+            <div className="font-medium">Montant: {typeof invoice.amount === 'number' ? `${invoice.amount} €` : invoice.amount}</div>
           </div>
         </div>
       </CardContent>
