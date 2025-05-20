@@ -7,10 +7,10 @@ import { Client } from "@/types/user";
 
 export interface ClientSelectorProps {
   onClientSelect: (client: Client) => void;
-  buttonText?: string; // Propriété optionnelle pour personnaliser le texte du bouton
+  buttonText?: string;
 }
 
-export const ClientSelector = ({ onClientSelect, buttonText }: ClientSelectorProps) => {
+export const ClientSelector = ({ onClientSelect, buttonText = "Sélectionner" }: ClientSelectorProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
@@ -91,7 +91,7 @@ export const ClientSelector = ({ onClientSelect, buttonText }: ClientSelectorPro
                 )}
               </div>
               <Button variant="ghost" size="sm" onClick={() => onClientSelect(client)}>
-                Sélectionner
+                {buttonText}
               </Button>
             </div>
           ))}

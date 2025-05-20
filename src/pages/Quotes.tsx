@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,6 +42,18 @@ const Quotes = () => {
   const fetchQuotes = async () => {
     setLoading(true);
     try {
+      // Check if the quotes table exists before querying it
+      const { count, error: checkError } = await supabase
+        .from('quotes')
+        .select('*', { count: 'exact', head: true });
+
+      if (checkError) {
+        console.error('Error checking quotes table:', checkError);
+        toast.error('Failed to check quotes table.');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('quotes')
         .select(`
@@ -129,10 +142,10 @@ const Quotes = () => {
           />
         </div>
 
-        <Card>
-          <CardContent>
+        <Card className="mt-6">
+          <CardContent className="p-0">
             {loading ? (
-              <div className="text-center">Loading quotes...</div>
+              <div className="text-center p-4">Loading quotes...</div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -146,54 +159,62 @@ const Quotes = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredQuotes.map(quote => (
-                      <TableRow key={quote.id}>
-                        <TableCell className="font-medium">
-                          <Link to={`/quotes/${quote.id}`} className="hover:underline">
-                            {quote.quote_number}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{quote.client?.client_name}</TableCell>
-                        <TableCell>
-                          {format(new Date(quote.issue_date), 'PPP', { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>{formatCurrency(quote.total_amount, 'EUR')}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Actions</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedQuoteId(quote.id);
-                                setIsQuoteDialogOpen(true);
-                              }}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/quotes/pdf/${quote.id}`)}>
-                                <FileText className="h-4 w-4 mr-2" />
-                                Download PDF
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteQuote(quote.id)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {filteredQuotes.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center">
+                          No quotes found
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredQuotes.map(quote => (
+                        <TableRow key={quote.id}>
+                          <TableCell className="font-medium">
+                            <Link to={`/quotes/${quote.id}`} className="hover:underline">
+                              {quote.quote_number}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{quote.client?.client_name}</TableCell>
+                          <TableCell>
+                            {format(new Date(quote.issue_date), 'PPP', { locale: ptBR })}
+                          </TableCell>
+                          <TableCell>{formatCurrency(quote.total_amount, 'EUR')}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Actions</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => navigate(`/quotes/${quote.id}`)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedQuoteId(quote.id);
+                                  setIsQuoteDialogOpen(true);
+                                }}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/quotes/pdf/${quote.id}`)}>
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteQuote(quote.id)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -204,7 +225,7 @@ const Quotes = () => {
         <QuoteDialog
           open={isQuoteDialogOpen}
           onOpenChange={setIsQuoteDialogOpen}
-          editQuoteId={null} // Add this line
+          editQuoteId={selectedQuoteId}
           onSuccess={handleQuoteSuccess}
         />
       </div>
