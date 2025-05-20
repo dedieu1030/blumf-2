@@ -1,51 +1,55 @@
+
 import { PaymentMethodDetails, PaymentTermTemplate, Currency } from '@/types/invoice';
 
+// Make currencies available for import elsewhere
+export const availableCurrencies = [
+  { code: 'USD', name: 'US Dollar', symbol: '$' },
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'GBP', name: 'British Pound', symbol: '£' },
+  { code: 'CAD', name: 'Canadian Dollar', symbol: '$' },
+  { code: 'AUD', name: 'Australian Dollar', symbol: '$' },
+  { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
+  { code: 'CHF', name: 'Swiss Franc', symbol: 'Fr' },
+  { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
+  { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
+  { code: 'NZD', name: 'New Zealand Dollar', symbol: '$' },
+  { code: 'MXN', name: 'Mexican Peso', symbol: '$' },
+  { code: 'SGD', name: 'Singapore Dollar', symbol: '$' },
+  { code: 'HKD', name: 'Hong Kong Dollar', symbol: '$' },
+  { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
+  { code: 'KRW', name: 'South Korean Won', symbol: '₩' },
+  { code: 'TRY', name: 'Turkish Lira', symbol: '₺' },
+  { code: 'RUB', name: 'Russian Ruble', symbol: '₽' },
+  { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
+  { code: 'BRL', name: 'Brazilian Real', symbol: 'R$' },
+  { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
+  { code: 'DKK', name: 'Danish Krone', symbol: 'kr' },
+  { code: 'PLN', name: 'Polish Zloty', symbol: 'zł' },
+  { code: 'TWD', name: 'Taiwan Dollar', symbol: 'NT$' },
+  { code: 'THB', name: 'Thai Baht', symbol: '฿' },
+  { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp' },
+  { code: 'HUF', name: 'Hungarian Forint', symbol: 'Ft' },
+  { code: 'CZK', name: 'Czech Koruna', symbol: 'Kč' },
+  { code: 'ILS', name: 'Israeli New Shekel', symbol: '₪' },
+  { code: 'PHP', name: 'Philippine Peso', symbol: '₱' },
+  { code: 'MYR', name: 'Malaysian Ringgit', symbol: 'RM' },
+  { code: 'AED', name: 'United Arab Emirates Dirham', symbol: 'د.إ' },
+  { code: 'ARS', name: 'Argentine Peso', symbol: '$' },
+  { code: 'CLP', name: 'Chilean Peso', symbol: '$' },
+  { code: 'COP', name: 'Colombian Peso', symbol: '$' },
+  { code: 'PEN', name: 'Peruvian Sol', symbol: 'S/.' },
+  { code: 'VND', name: 'Vietnamese Dong', symbol: '₫' },
+  { code: 'EGP', name: 'Egyptian Pound', symbol: '£' },
+  { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
+  { code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh' },
+  { code: 'UGX', name: 'Ugandan Shilling', symbol: 'USh' },
+  { code: 'GHS', name: 'Ghanaian Cedi', symbol: 'GH₵' },
+  { code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh' },
+  { code: 'XOF', name: 'West African CFA franc', symbol: 'Fr' },
+];
+
 export const getDefaultCurrencies = (): Currency[] => {
-  return [
-    { code: 'USD', name: 'US Dollar', symbol: '$' },
-    { code: 'EUR', name: 'Euro', symbol: '€' },
-    { code: 'GBP', name: 'British Pound', symbol: '£' },
-    { code: 'CAD', name: 'Canadian Dollar', symbol: '$' },
-    { code: 'AUD', name: 'Australian Dollar', symbol: '$' },
-    { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
-    { code: 'CHF', name: 'Swiss Franc', symbol: 'Fr' },
-    { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
-    { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
-    { code: 'NZD', name: 'New Zealand Dollar', symbol: '$' },
-    { code: 'MXN', name: 'Mexican Peso', symbol: '$' },
-    { code: 'SGD', name: 'Singapore Dollar', symbol: '$' },
-    { code: 'HKD', name: 'Hong Kong Dollar', symbol: '$' },
-    { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
-    { code: 'KRW', name: 'South Korean Won', symbol: '₩' },
-    { code: 'TRY', name: 'Turkish Lira', symbol: '₺' },
-    { code: 'RUB', name: 'Russian Ruble', symbol: '₽' },
-    { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
-    { code: 'BRL', name: 'Brazilian Real', symbol: 'R$' },
-    { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
-    { code: 'DKK', name: 'Danish Krone', symbol: 'kr' },
-    { code: 'PLN', name: 'Polish Zloty', symbol: 'zł' },
-    { code: 'TWD', name: 'Taiwan Dollar', symbol: 'NT$' },
-    { code: 'THB', name: 'Thai Baht', symbol: '฿' },
-    { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp' },
-    { code: 'HUF', name: 'Hungarian Forint', symbol: 'Ft' },
-    { code: 'CZK', name: 'Czech Koruna', symbol: 'Kč' },
-    { code: 'ILS', name: 'Israeli New Shekel', symbol: '₪' },
-    { code: 'PHP', name: 'Philippine Peso', symbol: '₱' },
-    { code: 'MYR', name: 'Malaysian Ringgit', symbol: 'RM' },
-    { code: 'AED', name: 'United Arab Emirates Dirham', symbol: 'د.إ' },
-    { code: 'ARS', name: 'Argentine Peso', symbol: '$' },
-    { code: 'CLP', name: 'Chilean Peso', symbol: '$' },
-    { code: 'COP', name: 'Colombian Peso', symbol: '$' },
-    { code: 'PEN', name: 'Peruvian Sol', symbol: 'S/.' },
-    { code: 'VND', name: 'Vietnamese Dong', symbol: '₫' },
-    { code: 'EGP', name: 'Egyptian Pound', symbol: '£' },
-    { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
-    { code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh' },
-    { code: 'UGX', name: 'Ugandan Shilling', symbol: 'USh' },
-    { code: 'GHS', name: 'Ghanaian Cedi', symbol: 'GH₵' },
-    { code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh' },
-    { code: 'XOF', name: 'West African CFA franc', symbol: 'Fr' },
-  ];
+  return availableCurrencies;
 };
 
 export const getDefaultPaymentMethods = (): PaymentMethodDetails[] => {
@@ -150,4 +154,54 @@ export const getDefaultPaymentTerms = (): PaymentTermTemplate[] => {
       description: 'Paiement dû dans les 90 jours'
     }
   ];
+};
+
+// Add necessary functions that are imported in Invoicing.tsx
+
+export const getDefaultCurrency = (): string => {
+  return 'EUR'; // Default to Euro
+};
+
+export const saveDefaultCurrency = (currency: string): void => {
+  localStorage.setItem('defaultCurrency', currency);
+};
+
+export const getDefaultPaymentTerm = (): string => {
+  return localStorage.getItem('defaultPaymentTerm') || 'immediate'; 
+};
+
+export const saveDefaultPaymentTerm = (term: string, customDate?: string): void => {
+  localStorage.setItem('defaultPaymentTerm', term);
+  if (customDate) {
+    localStorage.setItem('customDueDate', customDate);
+  } else {
+    localStorage.removeItem('customDueDate');
+  }
+};
+
+export const getInvoiceNumberingConfig = () => {
+  const storedConfig = localStorage.getItem('invoiceNumberingConfig');
+  if (storedConfig) {
+    return JSON.parse(storedConfig);
+  }
+  
+  return {
+    prefix: "INV",
+    suffix: "",
+    startNumber: 1,
+    padding: 3,
+    separator: "-",
+    includeDate: true,
+    dateFormat: "YYYY-MM-DD",
+    digits: 3,
+    nextNumber: 1,
+    pattern: "PREFIX-YEAR-NUMBER",
+    resetPeriod: "never",
+    lastReset: "",
+    resetAnnually: false
+  };
+};
+
+export const saveInvoiceNumberingConfig = (config: any): void => {
+  localStorage.setItem('invoiceNumberingConfig', JSON.stringify(config));
 };
