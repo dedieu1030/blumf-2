@@ -2,8 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-
-type Status = "paid" | "pending" | "overdue" | "draft";
+import { Status } from "@/types/invoice";
 
 interface InvoiceStatusProps {
   status: Status;
@@ -34,6 +33,11 @@ export function InvoiceStatus({ status, className }: InvoiceStatusProps) {
         return {
           label: t("draftStatus"),
           className: "bg-muted text-muted-foreground hover:bg-muted/80"
+        };
+      case "cancelled":
+        return {
+          label: t("cancelledStatus", "Annulée"),
+          className: "bg-gray-200 text-gray-700 hover:bg-gray-300"
         };
       default:
         return {

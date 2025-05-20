@@ -38,7 +38,6 @@ export function UserProfileForm({ initialData, onSave, onCancel }: UserProfileFo
     if (user) {
       setUserData({
         id: user.id,
-        username: user.username,
         full_name: user.full_name,
         avatar_url: user.avatar_url,
         email: user.email,
