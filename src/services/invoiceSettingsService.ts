@@ -53,6 +53,17 @@ export const getDefaultCurrencies = (): Currency[] => {
 };
 
 export const getDefaultPaymentMethods = (): PaymentMethodDetails[] => {
+  // First try to get from localStorage
+  const savedMethods = localStorage.getItem('defaultPaymentMethods');
+  if (savedMethods) {
+    try {
+      return JSON.parse(savedMethods);
+    } catch (error) {
+      console.error('Error parsing saved payment methods:', error);
+    }
+  }
+  
+  // Return the default methods if nothing is saved or there was an error
   return [
     {
       method: 'Bank Transfer',
@@ -104,6 +115,11 @@ export const getDefaultPaymentMethods = (): PaymentMethodDetails[] => {
       details: 'Autre moyen de paiement.'
     }
   ];
+};
+
+// Add the missing saveDefaultPaymentMethods function
+export const saveDefaultPaymentMethods = (methods: PaymentMethodDetails[]): void => {
+  localStorage.setItem('defaultPaymentMethods', JSON.stringify(methods));
 };
 
 export const getDefaultPaymentTerms = (): PaymentTermTemplate[] => {
@@ -159,7 +175,8 @@ export const getDefaultPaymentTerms = (): PaymentTermTemplate[] => {
 // Add necessary functions that are imported in Invoicing.tsx
 
 export const getDefaultCurrency = (): string => {
-  return 'EUR'; // Default to Euro
+  const savedCurrency = localStorage.getItem('defaultCurrency');
+  return savedCurrency || 'EUR'; // Default to Euro if not set
 };
 
 export const saveDefaultCurrency = (currency: string): void => {
