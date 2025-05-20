@@ -26,30 +26,12 @@ import {
   PaymentMethodDetails,
   CompanyProfile,
   PaymentTermTemplate,
+  DiscountInfo
 } from "@/types/invoice";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { PaymentTermsSelector } from "./PaymentTermsSelector";
 import { getPaymentTermsTemplates } from "@/services/paymentTermsService";
-
-// A simple InputCurrency component since it's missing
-const InputCurrency = React.forwardRef<HTMLInputElement, 
-  { value: number; onValueChange: (value: number) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'>
->((props, ref) => {
-  const { value, onValueChange, ...rest } = props;
-  
-  return (
-    <Input 
-      type="number"
-      value={value}
-      onChange={(e) => onValueChange(Number(e.target.value))}
-      ref={ref}
-      step="0.01"
-      {...rest}
-    />
-  );
-});
-
-InputCurrency.displayName = "InputCurrency";
+import { InputCurrency } from "@/components/ui/input-currency";
 
 interface InvoiceDialogProps {
   open: boolean;
@@ -57,6 +39,8 @@ interface InvoiceDialogProps {
   invoice?: InvoiceData;
   onSuccess?: () => void;
   companyProfile?: CompanyProfile;
+  onGenerateInvoice?: (invoiceData: InvoiceData) => Promise<void>;
+  isGenerating?: boolean;
 }
 
 export function InvoiceDialog({
@@ -64,7 +48,9 @@ export function InvoiceDialog({
   onOpenChange,
   invoice,
   onSuccess,
-  companyProfile
+  companyProfile,
+  onGenerateInvoice,
+  isGenerating
 }: InvoiceDialogProps) {
   const { toast } = useToast();
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -254,16 +240,21 @@ export function InvoiceDialog({
         serviceLines: items,
       };
 
-      // Here you would typically call your API to save the invoice data
-      // For this example, we'll just simulate a successful save
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (onGenerateInvoice) {
+        await onGenerateInvoice(invoiceData);
+      } else {
+        // Here you would typically call your API to save the invoice data
+        // For this example, we'll just simulate a successful save
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      toast({
-        title: "Success",
-        description: "Invoice saved successfully.",
-      });
+        toast({
+          title: "Success",
+          description: "Invoice saved successfully.",
+        });
 
-      onSuccess?.();
+        onSuccess?.();
+      }
+      
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving invoice:", error);
@@ -554,8 +545,8 @@ export function InvoiceDialog({
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting || isLoading}>
-              {isSubmitting ? "Saving..." : "Save"}
+            <Button type="submit" disabled={isSubmitting || isLoading || isGenerating}>
+              {isSubmitting || isGenerating ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </form>

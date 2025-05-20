@@ -1,3 +1,4 @@
+
 export interface SignatureData {
   points: Array<{x: number, y: number}>;
   width: number;
@@ -68,6 +69,22 @@ export interface InvoiceData {
   serviceLines?: ServiceLine[];
 }
 
+// Add the Invoice interface which is needed by several components
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  client_id: string;
+  client_name?: string;
+  amount: number;
+  date: string;
+  due_date?: string;
+  status: Status;
+  paid_date?: string;
+  reminder_sent_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export type PaymentMethod = 'card' | 'transfer' | 'paypal' | 'check' | 'cash' | 'payoneer' | 'other';
 
 export interface PaymentMethodDetails {
@@ -106,6 +123,8 @@ export interface CompanyProfile {
   businessType?: 'company' | 'individual' | 'lawyer' | 'freelancer' | 'other';
   businessTypeCustom?: string;
   logo?: string;
+  profileType?: string;
+  profileSubtype?: string;
 }
 
 export interface PaymentTermTemplate {
@@ -159,6 +178,7 @@ export interface ReminderSchedule {
   name: string;
   triggers: ReminderTrigger[];
   isDefault?: boolean;
+  enabled?: boolean;
 }
 
 export interface ReminderTrigger {
@@ -166,6 +186,10 @@ export interface ReminderTrigger {
   daysBefore: number;
   message: string;
   enabled: boolean;
+  triggerType?: string;
+  triggerValue?: number;
+  emailSubject?: string;
+  emailBody?: string;
 }
 
 export interface InvoiceNumberingConfig {
@@ -175,4 +199,17 @@ export interface InvoiceNumberingConfig {
   nextNumber: number;
   resetPeriod: 'never' | 'monthly' | 'yearly';
   lastReset?: string;
+  padding?: number;
+  startNumber?: number; 
+  separator?: string;
+  includeDate?: boolean;
+  dateFormat?: string;
+  digits?: number;
+  resetAnnually?: boolean;
+}
+
+export interface Currency {
+  code: string;
+  name: string;
+  symbol: string;
 }
