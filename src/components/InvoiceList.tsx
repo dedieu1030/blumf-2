@@ -16,35 +16,23 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InvoiceMobileCard } from "./InvoiceMobileCard";
-
-interface Invoice {
-  id: string;
-  number: string;
-  invoice_number: string;
-  client: string;
-  amount: string;
-  date: string;
-  dueDate: string;
-  status: "paid" | "pending" | "overdue" | "draft";
-  paymentUrl?: string;
-  stripeInvoiceId?: string;
-}
-
-import React from 'react';
 import { Invoice } from '@/types/invoice';
 
 export interface InvoiceListProps {
   invoices: Invoice[];
   limit?: number;
-  showActions?: boolean;  // Ajouté pour supporter l'option de masquer les actions
+  showActions?: boolean;
+  title?: string;
+  showViewAll?: boolean;
+  onInvoiceStatusChanged?: () => void;
 }
 
 export function InvoiceList({ 
-  title, 
   invoices, 
-  limit, 
-  showViewAll = false,
+  limit,
   showActions = true,
+  title,
+  showViewAll = false,
   onInvoiceStatusChanged
 }: InvoiceListProps) {
   const displayedInvoices = limit ? invoices.slice(0, limit) : invoices;

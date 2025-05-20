@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -57,23 +56,18 @@ export function NewClientForm({ open, onOpenChange, onClientCreated }: NewClient
 
       toast.success("Client créé avec succès");
       
-      // Mapper les propriétés pour assurer la compatibilité
-      const clientData: Client = {
-        ...data,
-        name: data.client_name,
-        user_id: data.company_id
-      };
-      
-      // Pass the new client back to parent component
-      onClientCreated(clientData);
-      
-      // Reset form fields
-      setClientName("");
-      setEmail("");
-      setPhone("");
-      setAddress("");
-      
-      onOpenChange(false);
+      if (data) {
+        // Pass the new client back to parent component
+        onClientCreated(data as Client);
+        
+        // Reset form fields
+        setClientName("");
+        setEmail("");
+        setPhone("");
+        setAddress("");
+        
+        onOpenChange(false);
+      }
     } catch (error) {
       console.error("Error creating client:", error);
       toast.error("Erreur lors de la création du client");

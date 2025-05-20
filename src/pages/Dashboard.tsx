@@ -1,4 +1,3 @@
-
 import { DashboardStats } from "@/components/DashboardStats";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +41,7 @@ const Dashboard = () => {
         }
 
         // Transform data for overdue invoices
-        const transformedOverdueInvoices = overdueData.map((invoice) => ({
+        const transformedOverdueInvoices = overdueData?.map((invoice) => ({
           id: invoice.id,
           number: invoice.invoice_number,
           client_name: invoice.client?.client_name || "Client inconnu",
@@ -50,7 +49,7 @@ const Dashboard = () => {
           date: invoice.issue_date,
           dueDate: invoice.due_date,
           status: invoice.status
-        }));
+        })) || [];
 
         setOverdueInvoices(transformedOverdueInvoices);
 
@@ -66,7 +65,7 @@ const Dashboard = () => {
         }
 
         // Transform data to match Invoice type
-        const transformedInvoices = recentData.map((invoice) => ({
+        const transformedInvoices = recentData?.map((invoice) => ({
           id: invoice.id,
           number: invoice.invoice_number,
           client_name: invoice.client?.client_name || "Client inconnu",
@@ -74,7 +73,7 @@ const Dashboard = () => {
           date: invoice.issue_date,
           dueDate: invoice.due_date,
           status: invoice.status
-        }));
+        })) || [];
 
         setRecentInvoices(transformedInvoices);
       } catch (error) {

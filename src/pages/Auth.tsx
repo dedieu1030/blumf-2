@@ -1,120 +1,157 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SignInComponent, SignUpComponent } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Auth() {
-  const [activeTab, setActiveTab] = useState("signin");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-      setIsLoaded(true);
-    };
-    
-    checkSession();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-      setIsLoaded(true);
-    });
-    
-    return () => subscription.unsubscribe();
-  }, []);
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-  // Rediriger si déjà connecté
-  useEffect(() => {
-    if (isLoaded && isAuthenticated) {
-      navigate('/profile');
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Compte créé",
+        description: "Veuillez vérifier votre email pour confirmer votre compte.",
+      });
+      
+      navigate("/");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
+      toast({
+        title: "Erreur d'inscription",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [isLoaded, isAuthenticated, navigate]);
+  };
 
-  if (!isLoaded) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-spin h-8 w-8 border-4 border-violet rounded-full border-t-transparent"></div>
-      </div>
-    );
-  }
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      navigate("/");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
+      toast({
+        title: "Erreur de connexion",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Section gauche: formulaire d'authentification */}
-      <div className="w-full lg:w-1/2 flex flex-col py-12 px-8 md:px-16 lg:px-24 bg-background">
-        <div className="mb-12 mt-8">
-          <h1 className="font-['Space_Mono'] font-bold text-4xl tracking-tighter text-[#003427]">
-            blumfo<span className="inline-flex items-center">
-              <span className="h-2 w-2 ml-0.5 rounded-full bg-[#FA7043]"></span>
-            </span>
-          </h1>
-        </div>
-        
-        <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
-          <div className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-medium mb-2 text-foreground">Bienvenue</h2>
-            <p className="text-muted-foreground">
-              {activeTab === "signin" 
-                ? "Connectez-vous à votre compte pour accéder à votre tableau de bord." 
-                : "Créez un compte pour commencer à utiliser blumfo."}
-            </p>
-          </div>
-          
-          <Tabs defaultValue="signin" value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="signin">Se connecter</TabsTrigger>
-              <TabsTrigger value="signup">S'inscrire</TabsTrigger>
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl">Bienvenue</CardTitle>
+          <CardDescription>
+            Connectez-vous à votre compte ou créez-en un nouveau
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">Connexion</TabsTrigger>
+              <TabsTrigger value="signup">Inscription</TabsTrigger>
             </TabsList>
             <TabsContent value="signin">
-              <SignInComponent />
+              <form onSubmit={handleSignIn} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connexion...
+                    </>
+                  ) : (
+                    "Se connecter"
+                  )}
+                </Button>
+              </form>
             </TabsContent>
             <TabsContent value="signup">
-              <SignUpComponent />
+              <form onSubmit={handleSignUp} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Inscription...
+                    </>
+                  ) : (
+                    "S'inscrire"
+                  )}
+                </Button>
+              </form>
             </TabsContent>
           </Tabs>
-        </div>
-        
-        <div className="mt-12 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} blumfo. Tous droits réservés.
-        </div>
-      </div>
-      
-      {/* Section droite: visuel / couleur de fond */}
-      <div className="hidden lg:block lg:w-1/2 bg-beige relative">
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-12">
-          <div className="bg-[#003427] rounded-xl p-10 text-white max-w-md">
-            <h3 className="text-2xl font-medium mb-4">
-              Simplifiez votre facturation.
-            </h3>
-            <p className="mb-6">
-              Une solution de facturation intuitive, puissante et adaptée à vos besoins.
-            </p>
-            <ul className="space-y-3">
-              <li className="flex items-start">
-                <span className="h-1.5 w-1.5 mt-2 mr-2 rounded-full bg-[#FA7043]"></span>
-                <span>Création de factures professionnelles</span>
-              </li>
-              <li className="flex items-start">
-                <span className="h-1.5 w-1.5 mt-2 mr-2 rounded-full bg-[#FA7043]"></span>
-                <span>Gestion simplifiée de vos clients</span>
-              </li>
-              <li className="flex items-start">
-                <span className="h-1.5 w-1.5 mt-2 mr-2 rounded-full bg-[#FA7043]"></span>
-                <span>Suivi des paiements en temps réel</span>
-              </li>
-            </ul>
-          </div>
-          
-          <div className="absolute bottom-8 text-sm text-[#003427] opacity-75">
-            © {new Date().getFullYear()} blumfo. Tous droits réservés.
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

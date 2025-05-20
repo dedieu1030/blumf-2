@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -6,20 +5,16 @@ import { Button } from "@/components/ui/button";
 
 export interface Client {
   id: string;
-  name?: string;
+  client_name: string;
   email: string | null;
-  phone?: string | null;
-  address?: string | null;
-  notes?: string | null;
+  phone: string | null;
+  address: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
-  user_id?: string;
-  invoiceCount?: number;
-  // Champs de la table clients dans Supabase
-  client_name?: string;
   company_id?: string | null;
-  group_id?: string | null;
   reference_number?: string | null;
+  group_id?: string | null;
 }
 
 export interface ClientSelectorProps {
@@ -44,15 +39,8 @@ export const ClientSelector = ({ onClientSelect, buttonText }: ClientSelectorPro
         
         if (error) throw error;
         
-        // Adapter les données de Supabase au format Client attendu
-        const adaptedClients = (data || []).map(client => ({
-          ...client,
-          name: client.client_name, // Mapping client_name à name pour la compatibilité
-          user_id: client.company_id // Utilisation de company_id comme user_id
-        }));
-        
-        setClients(adaptedClients as Client[]);
-        setFilteredClients(adaptedClients as Client[]);
+        setClients(data || []);
+        setFilteredClients(data || []);
       } catch (error) {
         console.error('Error fetching clients:', error);
       } finally {
@@ -69,7 +57,7 @@ export const ClientSelector = ({ onClientSelect, buttonText }: ClientSelectorPro
     } else {
       const lowercaseQuery = searchQuery.toLowerCase();
       const filtered = clients.filter(client => 
-        (client.name?.toLowerCase().includes(lowercaseQuery) || client.client_name?.toLowerCase().includes(lowercaseQuery)) || 
+        client.client_name.toLowerCase().includes(lowercaseQuery) || 
         (client.email && client.email.toLowerCase().includes(lowercaseQuery))
       );
       setFilteredClients(filtered);
@@ -101,7 +89,7 @@ export const ClientSelector = ({ onClientSelect, buttonText }: ClientSelectorPro
               onClick={() => onClientSelect(client)}
             >
               <div>
-                <div className="font-medium">{client.name || client.client_name}</div>
+                <div className="font-medium">{client.client_name}</div>
                 {client.email && (
                   <div className="text-sm text-muted-foreground">{client.email}</div>
                 )}
