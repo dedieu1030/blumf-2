@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Dialog, 
@@ -16,11 +17,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { CalendarIcon } from "@radix-ui/react-icons";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createQuote, updateQuote, updateQuoteItems, fetchQuoteById, generateQuoteNumber } from '@/services/quoteService';
 import { supabase } from "@/integrations/supabase/client";
-import { Quote, QuoteItem } from "@/types/invoice";
+import { Quote, QuoteItem } from "@/types/quote";
 
 interface QuoteDialogProps {
   open: boolean;
@@ -57,18 +58,16 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
           setValidityDate(quote.validity_date || '');
           setExecutionDate(quote.execution_date || '');
           setStatus(quote.status);
-          setClientId(quote.client_id);
+          setClientId(quote.client_id || '');
           setClientName(quote.client?.client_name || '');
           setNotes(quote.notes || '');
           
           // Set items if available
           if (quote.items && quote.items.length > 0) {
+            // Make sure to include quote_id for each item
             setQuoteItems(quote.items.map(item => ({
-              id: item.id,
-              description: item.description,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.total_price
+              ...item,
+              quote_id: editQuoteId
             })));
           }
           
@@ -78,9 +77,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         .catch(error => {
           console.error("Error fetching quote:", error);
           toast({
-            title: "Erreur",
-            description: "Impossible de charger les données du devis",
-            variant: "destructive"
+            description: "Impossible de charger les données du devis"
           });
         })
         .finally(() => {
@@ -122,10 +119,12 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
     setQuoteItems(quoteItems => {
       return [...quoteItems, {
         id: Date.now().toString(),
+        quote_id: editQuoteId || '',
         description: "",
         quantity: 1,
         unit_price: 0,
-        total_price: 0
+        total_price: 0,
+        created_at: new Date().toISOString()
       }];
     });
   };
@@ -141,9 +140,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
     
     if (!clientId) {
       toast({
-        title: "Erreur",
-        description: "Veuillez sélectionner un client",
-        variant: "destructive"
+        description: "Veuillez sélectionner un client"
       });
       return;
     }
@@ -154,7 +151,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       const quoteData = {
         quote_number: quoteNumber,
         client_id: clientId,
-        company_id: supabase.auth.getUser()?.data?.user?.id, // Get the current user ID
+        company_id: (await supabase.auth.getUser()).data.user?.id,
         issue_date: issueDate,
         validity_date: validityDate || undefined,
         execution_date: executionDate || undefined,
@@ -177,17 +174,15 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       }
       
       toast({
-        title: editQuoteId ? "Devis mis à jour" : "Devis créé",
         description: `Le devis ${quoteNumber} a été ${editQuoteId ? 'mis à jour' : 'créé'} avec succès.`
       });
       
       onSuccess?.();
+      onOpenChange(false);
     } catch (error) {
       console.error("Error saving quote:", error);
       toast({
-        title: "Erreur",
-        description: `Une erreur s'est produite lors de ${editQuoteId ? 'la mise à jour' : 'la création'} du devis.`,
-        variant: "destructive"
+        description: `Une erreur s'est produite lors de ${editQuoteId ? 'la mise à jour' : 'la création'} du devis.`
       });
     } finally {
       setIsSubmitting(false);

@@ -2,43 +2,45 @@
 import { useState, useEffect } from "react";
 import { InvoiceDialog } from "./InvoiceDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { InvoiceStatus } from "./InvoiceStatus";
+import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Eye, Pencil, Trash2, Copy, Loader2 } from "lucide-react";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Invoice, Status } from '@/types/invoice';
-import { CreditCard } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Pencil, Trash2, Eye, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useWindowSize } from "@/hooks/use-window-size";
+import { InvoiceMobileCard } from "./InvoiceMobileCard";
+import { InvoicePaymentLink } from "./InvoicePaymentLink";
+import { useNavigate } from "react-router-dom";
+import { Invoice, Status } from "@/types/invoice";
 
 interface InvoiceListProps {
-  limit?: number;
   onRefresh?: () => void;
+  filterStatus?: Status;
+  clientId?: string;
+  limit?: number;
 }
 
-export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
+export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: InvoiceListProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editInvoiceId, setEditInvoiceId] = useState<string | undefined>(undefined);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const { width } = useWindowSize();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [filterStatus, clientId, limit]);
 
   const fetchInvoices = async () => {
     try {
@@ -50,26 +52,43 @@ export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
           *,
           client:clients (id, client_name)
         `)
-        .order('date', { ascending: false });
-      
-      if (error) throw error;
-      
-      setInvoices(data || []);
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching invoices:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch invoices",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Apply filters if provided
+      let filteredData = data;
+      if (filterStatus) {
+        filteredData = filteredData.filter(inv => inv.status === filterStatus);
+      }
+
+      if (clientId) {
+        filteredData = filteredData.filter(inv => inv.client_id === clientId);
+      }
+
+      if (limit && limit > 0) {
+        filteredData = filteredData.slice(0, limit);
+      }
+
+      setInvoices(filteredData);
     } catch (error) {
-      console.error('Error fetching invoices:', error);
-      toast.error("Erreur lors du chargement des factures");
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong while fetching invoices",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
-
-  const handleEdit = (invoice: Invoice) => {
-    setEditInvoiceId(invoice.id);
-    setDialogOpen(true);
   };
 
   const handleDelete = async (invoice: Invoice) => {
@@ -80,16 +99,32 @@ export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
         .delete()
         .eq('id', invoice.id);
       
-      if (error) throw error;
-      
-      toast.success("Facture supprimée avec succès");
+      if (error) {
+        console.error('Error deleting invoice:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete invoice",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Invoice deleted successfully",
+      });
+
+      // Refresh the list
       fetchInvoices();
-    } catch (error) {
-      console.error('Error deleting invoice:', error);
-      toast.error("Erreur lors de la suppression de la facture");
-    } finally {
+      if (onRefresh) onRefresh();
       setDeleteDialogOpen(false);
-      setSelectedInvoice(null);
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      });
     }
   };
 
@@ -98,45 +133,20 @@ export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
     setDeleteDialogOpen(true);
   };
 
-  const handleDialogClose = () => {
-    setDialogOpen(false);
-    setEditInvoiceId(undefined);
+  const handleViewInvoice = (invoice: Invoice) => {
+    // Navigate to invoice details page
+    navigate(`/invoices/${invoice.id}`);
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setDialogOpen(true);
+  };
+
+  const handleDialogSuccess = () => {
     fetchInvoices();
     if (onRefresh) onRefresh();
-  };
-
-  const duplicateInvoice = async (invoice: Invoice) => {
-    try {
-      // Duplicate the invoice but generate a new invoice number
-      const newInvoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      
-      // Create a new invoice with most of the same data
-      const invoicesQuery = supabase.from('invoices') as any;
-      const { data, error } = await invoicesQuery
-        .insert({
-          client_id: invoice.client_id,
-          company_id: invoice.company_id,
-          invoice_number: newInvoiceNumber,
-          date: new Date().toISOString().split('T')[0],
-          dueDate: invoice.dueDate,
-          amount: invoice.amount,
-          status: 'draft'
-        })
-        .select('id')
-        .single();
-      
-      if (error) throw error;
-      
-      toast.success("Facture dupliquée avec succès");
-      fetchInvoices();
-    } catch (error) {
-      console.error('Error duplicating invoice:', error);
-      toast.error("Erreur lors de la duplication de la facture");
-    }
-  };
-
-  const viewInvoice = (id: string) => {
-    navigate(`/invoices/${id}`);
+    setDialogOpen(false);
   };
 
   const handleStatusChange = async (invoice: Invoice, newStatus: Status) => {
@@ -145,132 +155,148 @@ export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
         .update({ status: newStatus })
         .eq('id', invoice.id);
       
-      if (error) throw error;
-      
-      toast.success(`Statut mis à jour à ${newStatus}`);
+      if (error) {
+        console.error('Error updating status:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update invoice status",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Invoice status updated successfully",
+      });
+
+      // Refresh the list
       fetchInvoices();
+      if (onRefresh) onRefresh();
     } catch (error) {
-      console.error('Error updating invoice status:', error);
-      toast.error("Erreur lors de la mise à jour du statut");
-    }
-  };
-  
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "draft":
-        return <Badge variant="outline">Brouillon</Badge>;
-      case "pending":
-        return <Badge variant="secondary">En attente</Badge>;
-      case "paid":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Payée</Badge>;
-      case "overdue":
-        return <Badge variant="destructive">En retard</Badge>;
-      case "cancelled":
-        return <Badge variant="destructive">Annulée</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
+      });
     }
   };
 
+  const isMobile = width < 768;
+
   return (
-    <>
+    <div>
       {isLoading ? (
-        <div className="flex justify-center items-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        <Card className="p-8 flex justify-center">
+          <p>Loading invoices...</p>
+        </Card>
+      ) : invoices.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p>No invoices found.</p>
+        </Card>
+      ) : isMobile ? (
+        <div className="space-y-4">
+          {invoices.map((invoice) => (
+            <InvoiceMobileCard 
+              key={invoice.id} 
+              invoice={invoice as any} 
+              onView={() => handleViewInvoice(invoice)}
+              onEdit={() => handleEditInvoice(invoice)}
+              onDelete={() => confirmDelete(invoice)}
+              onStatusChange={(newStatus) => handleStatusChange(invoice, newStatus as Status)}
+            />
+          ))}
         </div>
       ) : (
-        <div className="container mx-auto py-8">
-          {invoices.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Aucune facture trouvée.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Numéro</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Date d'émission</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                    <TableCell>{invoice.client_name || (invoice.client ? invoice.client.client_name : 'Client inconnu')}</TableCell>
-                    <TableCell>{format(new Date(invoice.date), "P", { locale: fr })}</TableCell>
-                    <TableCell>{invoice.amount} €</TableCell>
-                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {invoice.paymentUrl && (
-                          <Button variant="ghost" size="icon" onClick={() => window.open(invoice.paymentUrl, '_blank')}>
-                            <CreditCard className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" onClick={() => viewInvoice(invoice.id)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(invoice)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => duplicateInvoice(invoice)}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Êtes-vous sûr(e) ?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Cette action supprimera la facture définitivement.
-                                Voulez-vous continuer ?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => confirmDelete(invoice)}>Supprimer</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Numéro</TableHead>
+                <TableHead>Client</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Montant</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices.map((invoice) => (
+                <TableRow key={invoice.id}>
+                  <TableCell>{invoice.invoice_number}</TableCell>
+                  <TableCell>{invoice.client?.client_name || 'N/A'}</TableCell>
+                  <TableCell>
+                    {invoice.date ? (
+                      <div>
+                        <div>{new Date(invoice.date).toLocaleDateString()}</div>
+                        <div className="text-xs text-gray-500">
+                          {formatDistanceToNow(new Date(invoice.date), { addSuffix: true, locale: fr })}
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                    ) : (
+                      'N/A'
+                    )}
+                  </TableCell>
+                  <TableCell>{invoice.amount} €</TableCell>
+                  <TableCell>
+                    <InvoiceStatus status={invoice.status as Status} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
+                          <Eye className="mr-2 h-4 w-4" /> Voir
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditInvoice(invoice)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Modifier
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => confirmDelete(invoice)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Supprimer
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
-      <InvoiceDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        editInvoiceId={editInvoiceId}
-        onSuccess={handleDialogClose}
-      />
+      {/* Dialog for editing invoice */}
+      {selectedInvoice && (
+        <InvoiceDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          invoice={selectedInvoice}
+          onSuccess={handleDialogSuccess}
+        />
+      )}
 
+      {/* Delete confirmation dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmation de suppression</AlertDialogTitle>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette facture ? Cette action est irréversible.
+              Cette action ne peut pas être annulée. Cela supprimera définitivement cette facture.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedInvoice(null)}>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleDelete(selectedInvoice!)}>Supprimer</AlertDialogAction>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => selectedInvoice && handleDelete(selectedInvoice)} className="bg-red-600 hover:bg-red-700">
+              Supprimer
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

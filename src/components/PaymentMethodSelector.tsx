@@ -1,228 +1,255 @@
 
 import React, { useState, useEffect } from 'react';
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { PaymentMethod, PaymentMethodDetails, CompanyProfile } from "@/types/invoice";
+import { PaymentMethodDetails, CompanyProfile } from "@/types/invoice";
+import { CreditCard, Banknote, Wallet, CreditCard as CheckIcon, DollarSign, PiggyBank } from 'lucide-react';
+
+type PaymentMethod = 'card' | 'transfer' | 'paypal' | 'check' | 'cash' | 'payoneer' | 'other';
 
 interface PaymentMethodSelectorProps {
-  methods: PaymentMethodDetails[];
-  onChange: (methods: PaymentMethodDetails[]) => void;
-  companyProfile: CompanyProfile | null;
-  onSaveDefault?: (methods: PaymentMethodDetails[]) => void;
+  selectedMethods: PaymentMethodDetails[];
+  onMethodsChange: (methods: PaymentMethodDetails[]) => void;
+  companyProfile?: CompanyProfile;
 }
 
-const paymentMethodLabels: Record<string, string> = {
-  card: "Carte bancaire (Stripe)",
-  transfer: "Virement bancaire",
-  paypal: "PayPal",
-  check: "Chèque",
-  cash: "Espèces",
-  payoneer: "Payoneer",
-  other: "Autre"
-};
-
 export function PaymentMethodSelector({ 
-  methods, 
-  onChange,
-  companyProfile,
-  onSaveDefault
+  selectedMethods, 
+  onMethodsChange,
+  companyProfile 
 }: PaymentMethodSelectorProps) {
-  const { toast } = useToast();
-  const [savedMethods, setSavedMethods] = useState<PaymentMethodDetails[]>([]);
+  const [methods, setMethods] = useState<PaymentMethodDetails[]>([]);
+  
+  // Translate payment method type to display name
+  const methodLabels: Record<string, string> = {
+    card: 'Carte bancaire',
+    transfer: 'Virement bancaire',
+    paypal: 'PayPal',
+    check: 'Chèque',
+    cash: 'Espèces',
+    payoneer: 'Payoneer', 
+    other: 'Autre'
+  };
 
-  // Load saved payment methods on component mount
   useEffect(() => {
-    const savedPaymentMethods = localStorage.getItem('defaultPaymentMethods');
-    if (savedPaymentMethods) {
-      try {
-        setSavedMethods(JSON.parse(savedPaymentMethods));
-      } catch (e) {
-        console.error("Error parsing saved payment methods", e);
-      }
+    // Initialize with selected methods or default methods
+    if (selectedMethods && selectedMethods.length > 0) {
+      setMethods(selectedMethods);
+    } else {
+      // Initialize with default empty methods
+      const defaultMethods: PaymentMethodDetails[] = [
+        { 
+          type: 'card' as PaymentMethod, 
+          enabled: false,
+          details: 'Paiement sécurisé par carte bancaire'
+        },
+        { 
+          type: 'transfer' as PaymentMethod, 
+          enabled: false,
+          details: companyProfile ? `Virement sur le compte ${companyProfile.bankAccount}` : 'Virement bancaire'
+        },
+        { 
+          type: 'paypal' as PaymentMethod, 
+          enabled: false,
+          details: companyProfile?.paypal || 'Paiement via PayPal'
+        },
+        { 
+          type: 'check' as PaymentMethod, 
+          enabled: false,
+          details: `Chèque à l'ordre de ${companyProfile?.accountHolder || '[Nom du bénéficiaire]'}`
+        },
+        { 
+          type: 'cash' as PaymentMethod, 
+          enabled: false,
+          details: 'Paiement en espèces'
+        }
+      ];
+      setMethods(defaultMethods);
     }
-  }, []);
+  }, [companyProfile]);
 
-  const updateMethod = (type: string, enabled: boolean, details?: string) => {
-    const existingIndex = methods.findIndex(m => m.type === type);
+  const handleMethodToggle = (index: number, enabled: boolean) => {
     const updatedMethods = [...methods];
-    
-    if (existingIndex >= 0) {
-      if (enabled) {
-        updatedMethods[existingIndex] = { 
-          ...updatedMethods[existingIndex], 
-          enabled,
-          ...(details !== undefined ? { details } : {})
-        };
-      } else {
-        updatedMethods.splice(existingIndex, 1);
-      }
-    } else if (enabled) {
-      updatedMethods.push({ type, enabled, details });
-    }
-    
-    onChange(updatedMethods);
+    updatedMethods[index] = { ...updatedMethods[index], enabled };
+    setMethods(updatedMethods);
+    onMethodsChange(updatedMethods.filter(m => m.enabled));
   };
 
-  const getMethodStatus = (type: string): { enabled: boolean, details?: string } => {
-    const method = methods.find(m => m.type === type);
-    if (method) {
-      let methodDetails = typeof method.details === 'string' ? method.details : undefined;
-      return { enabled: !!method.enabled, details: methodDetails };
-    }
-    return { enabled: false };
+  const handleMethodDetailsChange = (index: number, details: string) => {
+    const updatedMethods = [...methods];
+    updatedMethods[index] = { ...updatedMethods[index], details };
+    setMethods(updatedMethods);
+    onMethodsChange(updatedMethods.filter(m => m.enabled));
   };
 
-  const handleSaveAsDefault = () => {
-    // Save current methods as default
-    localStorage.setItem('defaultPaymentMethods', JSON.stringify(methods));
-    setSavedMethods(methods);
-    
-    if (onSaveDefault) {
-      onSaveDefault(methods);
-    }
-    
-    toast({
-      title: "Méthodes de paiement sauvegardées",
-      description: "Ces méthodes seront proposées par défaut pour vos nouvelles factures"
-    });
+  const renderCardMethod = (method: PaymentMethodDetails, index: number) => {
+    return (
+      <div key="card" className="p-4 border rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <Label htmlFor={`method-card`}>{methodLabels['card']}</Label>
+          </div>
+          <Switch
+            id={`method-card`}
+            checked={method.enabled}
+            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
+          />
+        </div>
+        
+        {method.enabled && (
+          <div className="mt-2">
+            <Textarea
+              placeholder="Instructions pour le paiement par carte"
+              value={method.details || ''}
+              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
+              className="h-20"
+            />
+          </div>
+        )}
+      </div>
+    );
   };
 
-  const loadDefaultMethods = () => {
-    if (savedMethods.length > 0) {
-      onChange(savedMethods);
-      
-      toast({
-        title: "Méthodes par défaut chargées",
-        description: "Les méthodes de paiement par défaut ont été appliquées"
-      });
-    }
+  const renderBankTransferMethod = (method: PaymentMethodDetails, index: number) => {
+    return (
+      <div key="transfer" className="p-4 border rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Banknote className="h-5 w-5 text-primary" />
+            <Label htmlFor={`method-transfer`}>{methodLabels['transfer']}</Label>
+          </div>
+          <Switch
+            id={`method-transfer`}
+            checked={method.enabled}
+            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
+          />
+        </div>
+        
+        {method.enabled && (
+          <div className="mt-2">
+            <Textarea
+              placeholder="Informations bancaires pour le virement"
+              value={method.details || ''}
+              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
+              className="h-20"
+            />
+          </div>
+        )}
+      </div>
+    );
   };
 
-  // Conditions pour afficher ou non certaines méthodes
-  const showPaypal = !!companyProfile?.paypal;
-  const showPayoneer = !!companyProfile?.payoneer;
-  const showBankTransfer = !!(companyProfile?.bankName && companyProfile?.bankAccount);
+  const renderPaypalMethod = (method: PaymentMethodDetails, index: number) => {
+    return (
+      <div key="paypal" className="p-4 border rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Wallet className="h-5 w-5 text-primary" />
+            <Label htmlFor={`method-paypal`}>{methodLabels['paypal']}</Label>
+          </div>
+          <Switch
+            id={`method-paypal`}
+            checked={method.enabled}
+            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
+          />
+        </div>
+        
+        {method.enabled && (
+          <div className="mt-2">
+            <Input
+              placeholder="Adresse email PayPal"
+              value={method.details || ''}
+              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCheckMethod = (method: PaymentMethodDetails, index: number) => {
+    return (
+      <div key="check" className="p-4 border rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CheckIcon className="h-5 w-5 text-primary" />
+            <Label htmlFor={`method-check`}>{methodLabels['check']}</Label>
+          </div>
+          <Switch
+            id={`method-check`}
+            checked={method.enabled}
+            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
+          />
+        </div>
+        
+        {method.enabled && (
+          <div className="mt-2">
+            <Textarea
+              placeholder="Instructions pour le paiement par chèque"
+              value={method.details || ''}
+              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
+              className="h-20"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCashMethod = (method: PaymentMethodDetails, index: number) => {
+    return (
+      <div key="cash" className="p-4 border rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <DollarSign className="h-5 w-5 text-primary" />
+            <Label htmlFor={`method-cash`}>{methodLabels['cash']}</Label>
+          </div>
+          <Switch
+            id={`method-cash`}
+            checked={method.enabled}
+            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
+          />
+        </div>
+        
+        {method.enabled && (
+          <div className="mt-2">
+            <Textarea
+              placeholder="Instructions pour le paiement en espèces"
+              value={method.details || ''}
+              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
+              className="h-20"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Méthodes de paiement acceptées</h3>
-        
-        {savedMethods.length > 0 && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={loadDefaultMethods}
-          >
-            Charger méthodes par défaut
-          </Button>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="payment-card" 
-            checked={getMethodStatus('card').enabled}
-            onCheckedChange={(checked) => updateMethod('card', checked as boolean)}
-          />
-          <Label htmlFor="payment-card">{paymentMethodLabels.card}</Label>
-        </div>
-        
-        {showBankTransfer && (
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="payment-transfer" 
-              checked={getMethodStatus('transfer').enabled}
-              onCheckedChange={(checked) => updateMethod('transfer', checked as boolean)}
-            />
-            <Label htmlFor="payment-transfer">{paymentMethodLabels.transfer}</Label>
-          </div>
-        )}
-        
-        {showPaypal && (
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="payment-paypal" 
-              checked={getMethodStatus('paypal').enabled}
-              onCheckedChange={(checked) => updateMethod('paypal', checked as boolean)}
-            />
-            <Label htmlFor="payment-paypal">{paymentMethodLabels.paypal}</Label>
-          </div>
-        )}
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="payment-check" 
-            checked={getMethodStatus('check').enabled}
-            onCheckedChange={(checked) => updateMethod('check', checked as boolean)}
-          />
-          <Label htmlFor="payment-check">{paymentMethodLabels.check}</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="payment-cash" 
-            checked={getMethodStatus('cash').enabled}
-            onCheckedChange={(checked) => updateMethod('cash', checked as boolean)}
-          />
-          <Label htmlFor="payment-cash">{paymentMethodLabels.cash}</Label>
-        </div>
-        
-        {showPayoneer && (
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="payment-payoneer" 
-              checked={getMethodStatus('payoneer').enabled}
-              onCheckedChange={(checked) => updateMethod('payoneer', checked as boolean)}
-            />
-            <Label htmlFor="payment-payoneer">
-              {paymentMethodLabels.payoneer}
-            </Label>
-          </div>
-        )}
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="payment-other" 
-            checked={getMethodStatus('other').enabled}
-            onCheckedChange={(checked) => updateMethod('other', checked as boolean)}
-          />
-          <Label htmlFor="payment-other">{paymentMethodLabels.other}</Label>
-        </div>
-      </div>
-      
-      {getMethodStatus('other').enabled && (
-        <Card className="mt-4">
-          <CardContent className="pt-4">
-            <Label htmlFor="other-payment-details" className="mb-2 block">Précisez les autres méthodes de paiement</Label>
-            <Textarea 
-              id="other-payment-details" 
-              placeholder="Exemple: Paiement par SEPA à l'ordre de..." 
-              value={getMethodStatus('other').details || ''}
-              onChange={(e) => updateMethod('other', true, e.target.value)}
-            />
-          </CardContent>
-        </Card>
-      )}
-      
-      <div className="flex justify-end mt-4">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleSaveAsDefault}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          Définir comme méthodes par défaut
-        </Button>
-      </div>
+      {methods.map((method, index) => {
+        if (method.type === 'card') {
+          return renderCardMethod(method, index);
+        }
+        if (method.type === 'transfer') {
+          return renderBankTransferMethod(method, index);
+        }
+        if (method.type === 'paypal') {
+          return renderPaypalMethod(method, index);
+        }
+        if (method.type === 'check') {
+          return renderCheckMethod(method, index);
+        }
+        if (method.type === 'cash') {
+          return renderCashMethod(method, index);
+        }
+        return null;
+      })}
     </div>
   );
 }
-
-export default PaymentMethodSelector;
