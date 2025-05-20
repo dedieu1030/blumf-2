@@ -68,6 +68,8 @@ export function PaymentTermsSettings() {
               ...t,
               name: newTemplateName,
               delay: newTemplateDelay,
+              days: parseInt(newTemplateDelay) || 0, // Add days property
+              description: t.description || "Payment terms", // Ensure description exists
               customDate: newTemplateDelay === "custom" ? newTemplateDate : undefined,
               termsText: newTemplateTerms,
               isDefault: newTemplateDefault
@@ -80,6 +82,8 @@ export function PaymentTermsSettings() {
         id: Date.now().toString(),
         name: newTemplateName,
         delay: newTemplateDelay,
+        days: parseInt(newTemplateDelay) || 0, // Add days property
+        description: "Default payment terms", // Add description property
         customDate: newTemplateDelay === "custom" ? newTemplateDate : undefined,
         termsText: newTemplateTerms,
         isDefault: newTemplateDefault

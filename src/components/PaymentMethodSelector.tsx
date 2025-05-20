@@ -17,23 +17,38 @@ import {
 import { useTranslation } from "react-i18next";
 
 export interface PaymentMethodSelectorProps {
-  methods: PaymentMethodDetails[];
-  onChange: (methods: PaymentMethodDetails[]) => void;
+  selectedMethods?: PaymentMethodDetails[]; // Renamed from methods to selectedMethods
+  methods?: PaymentMethodDetails[]; // Added methods as alternative
+  onChange?: (methods: PaymentMethodDetails[]) => void;
+  onMethodsChange?: (methods: PaymentMethodDetails[]) => void; // Added for compatibility
   companyProfile: CompanyProfile;
-  onSaveDefault: (methods: PaymentMethodDetails[]) => void;
+  onSaveDefault?: (methods: PaymentMethodDetails[]) => void;
 }
 
-export function PaymentMethodSelector({ methods, onChange, companyProfile, onSaveDefault }: PaymentMethodSelectorProps) {
+export function PaymentMethodSelector({ 
+  selectedMethods, 
+  methods, 
+  onChange, 
+  onMethodsChange,
+  companyProfile, 
+  onSaveDefault 
+}: PaymentMethodSelectorProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>("bank");
   
+  // Use either selectedMethods or methods, and ensure we have a non-null array
+  const paymentMethods = selectedMethods || methods || [];
+  
+  // Use either onChange or onMethodsChange callback
+  const handleMethodsChange = onChange || onMethodsChange || (() => {});
+  
   const handleMethodChange = (index: number, field: keyof PaymentMethodDetails, value: any) => {
-    const updatedMethods = [...methods];
+    const updatedMethods = [...paymentMethods];
     updatedMethods[index] = {
       ...updatedMethods[index],
       [field]: value
     };
-    onChange(updatedMethods);
+    handleMethodsChange(updatedMethods);
   };
   
   const handleAddMethod = (type: string) => {
@@ -52,17 +67,17 @@ export function PaymentMethodSelector({ methods, onChange, companyProfile, onSav
       newMethod.paypalEmail = companyProfile?.paypal || companyProfile?.email || '';
     }
     
-    onChange([...methods, newMethod]);
+    handleMethodsChange([...paymentMethods, newMethod]);
     setActiveTab(type);
   };
   
   const handleRemoveMethod = (index: number) => {
-    const updatedMethods = methods.filter((_, i) => i !== index);
-    onChange(updatedMethods);
+    const updatedMethods = paymentMethods.filter((_, i) => i !== index);
+    handleMethodsChange(updatedMethods);
   };
   
   const getMethodsByType = (type: string) => {
-    return methods.filter(method => method.type === type);
+    return paymentMethods.filter(method => method.type === type);
   };
   
   const bankMethods = getMethodsByType('transfer');
@@ -73,7 +88,7 @@ export function PaymentMethodSelector({ methods, onChange, companyProfile, onSav
   const otherMethods = getMethodsByType('other');
   
   const renderBankTransferForm = (method: PaymentMethodDetails, index: number) => {
-    const methodIndex = methods.findIndex(m => m === method);
+    const methodIndex = paymentMethods.findIndex(m => m === method);
     
     return (
       <div className="space-y-4">
@@ -151,7 +166,7 @@ export function PaymentMethodSelector({ methods, onChange, companyProfile, onSav
   };
   
   const renderPayPalForm = (method: PaymentMethodDetails, index: number) => {
-    const methodIndex = methods.findIndex(m => m === method);
+    const methodIndex = paymentMethods.findIndex(m => m === method);
     
     return (
       <div className="space-y-4">
@@ -187,7 +202,7 @@ export function PaymentMethodSelector({ methods, onChange, companyProfile, onSav
   };
   
   const renderOtherMethodForm = (method: PaymentMethodDetails, index: number) => {
-    const methodIndex = methods.findIndex(m => m === method);
+    const methodIndex = paymentMethods.findIndex(m => m === method);
     
     return (
       <div className="space-y-4">
@@ -359,7 +374,7 @@ export function PaymentMethodSelector({ methods, onChange, companyProfile, onSav
       </Tabs>
       
       <div className="flex justify-end">
-        <Button onClick={() => onSaveDefault(methods)}>
+        <Button onClick={() => onSaveDefault && onSaveDefault(paymentMethods)}>
           {t('saveAsDefault')}
         </Button>
       </div>

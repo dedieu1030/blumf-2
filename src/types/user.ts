@@ -22,7 +22,7 @@ export interface NotificationSettings {
 export interface Client {
   id: string;
   client_name: string;
-  name?: string; // Adding name for compatibility with components
+  name?: string; // Adding name property for compatibility
   email?: string;
   address?: string;
   phone?: string;
