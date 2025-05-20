@@ -1,3 +1,4 @@
+
 export interface SignatureData {
   points: Array<{x: number, y: number}>;
   width: number;
@@ -82,6 +83,7 @@ export interface Invoice {
   reminder_sent_date?: string;
   created_at?: string;
   updated_at?: string;
+  number?: string; // Added for compatibility
   client?: {
     id: string;
     client_name: string;
@@ -216,3 +218,6 @@ export interface Currency {
   name: string;
   symbol: string;
 }
+
+// Alias for backward compatibility (fixing CurrencyInfo type error)
+export type CurrencyInfo = Currency;

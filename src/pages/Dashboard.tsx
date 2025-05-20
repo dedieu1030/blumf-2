@@ -1,3 +1,4 @@
+
 import { DashboardStats } from "@/components/DashboardStats";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,7 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // Fetch stats totals - be careful about using invoices table for now
+        // Fetch stats totals
         const { data: invoiceStats, error: invoiceStatsError } = await supabase.rpc(
           'count_invoices_by_status'
         ).maybeSingle();
@@ -29,54 +30,57 @@ const Dashboard = () => {
           console.error("Error fetching invoice stats:", invoiceStatsError);
         }
 
-        // Update overdue invoices - use custom or future RPC call
-        // For now, use a simplified approach
+        // Update overdue invoices
         const { data: overdueData, error: overdueError } = await supabase
           .from('invoices')
-          .select('*, client:client_id(*)')
+          .select('*, client:clients!invoices_client_id_fkey(*)')
           .eq('status', 'overdue')
           .order('due_date', { ascending: false });
           
-        if (overdueError && !overdueError.message.includes('does not exist')) {
+        if (overdueError) {
           console.error("Error fetching overdue invoices:", overdueError);
+        } else {
+          // Transform data for overdue invoices
+          const transformedOverdueInvoices: Invoice[] = (overdueData || [])?.map((invoice) => ({
+            id: invoice.id,
+            invoice_number: invoice.invoice_number,
+            number: invoice.invoice_number, // For compatibility
+            client_name: invoice.client?.client_name || "Client inconnu",
+            client_id: invoice.client_id,
+            amount: invoice.total_amount.toString(),
+            date: invoice.issue_date,
+            due_date: invoice.due_date,
+            status: invoice.status as any
+          }));
+
+          setOverdueInvoices(transformedOverdueInvoices);
         }
-
-        // Transform data for overdue invoices
-        const transformedOverdueInvoices = (overdueData || [])?.map((invoice) => ({
-          id: invoice.id,
-          number: invoice.invoice_number,
-          client_name: invoice.client?.client_name || "Client inconnu",
-          amount: invoice.total_amount.toString(),
-          date: invoice.issue_date,
-          dueDate: invoice.due_date,
-          status: invoice.status
-        })) || [];
-
-        setOverdueInvoices(transformedOverdueInvoices);
 
         // Fetch recent invoices
         const { data: recentData, error: recentError } = await supabase
           .from('invoices')
-          .select('*, client:client_id(*)')
+          .select('*, client:clients!invoices_client_id_fkey(*)')
           .order('created_at', { ascending: false })
           .limit(5);
 
-        if (recentError && !recentError.message.includes('does not exist')) {
+        if (recentError) {
           console.error("Error fetching recent invoices:", recentError);
+        } else {
+          // Transform data to match Invoice type
+          const transformedInvoices: Invoice[] = (recentData || [])?.map((invoice) => ({
+            id: invoice.id,
+            invoice_number: invoice.invoice_number,
+            number: invoice.invoice_number, // For compatibility
+            client_name: invoice.client?.client_name || "Client inconnu",
+            client_id: invoice.client_id,
+            amount: invoice.total_amount.toString(),
+            date: invoice.issue_date,
+            due_date: invoice.due_date,
+            status: invoice.status as any
+          }));
+
+          setRecentInvoices(transformedInvoices);
         }
-
-        // Transform data to match Invoice type
-        const transformedInvoices = (recentData || [])?.map((invoice) => ({
-          id: invoice.id,
-          number: invoice.invoice_number,
-          client_name: invoice.client?.client_name || "Client inconnu",
-          amount: invoice.total_amount.toString(),
-          date: invoice.issue_date,
-          dueDate: invoice.due_date,
-          status: invoice.status
-        })) || [];
-
-        setRecentInvoices(transformedInvoices);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -116,7 +120,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <InvoiceList 
-              invoices={recentInvoices}
+              data={recentInvoices}
               limit={5}
             />
           </CardContent>
@@ -138,7 +142,6 @@ const Dashboard = () => {
           <CardContent>
             <QuoteList 
               limit={5}
-              showActions={false}
             />
           </CardContent>
         </Card>

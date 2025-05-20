@@ -182,10 +182,10 @@ const QuoteView = () => {
               <div className="border rounded-md p-4">
                 <p className="text-sm mb-2">Signé par: {quote.signatures[0].signed_name}</p>
                 <p className="text-sm mb-2">Date: {format(new Date(quote.signatures[0].signed_at), "dd/MM/yyyy")}</p>
-                {quote.signatures[0].signature_data && (
+                {quote.signatures[0]?.signature_data?.dataUrl && (
                   <div className="mt-2 border rounded p-2 bg-gray-50">
                     <img 
-                      src={`data:image/png;base64,${quote.signatures[0].signature_data.dataURL?.split(',')[1] || ''}`} 
+                      src={`data:image/png;base64,${quote.signatures[0]?.signature_data?.dataUrl?.split(',')[1] || ''}`} 
                       alt="Signature" 
                       className="max-h-24"
                     />

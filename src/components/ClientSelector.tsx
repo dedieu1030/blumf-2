@@ -3,20 +3,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-export interface Client {
-  id: string;
-  client_name: string;  // This is already correct
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-  company_id?: string | null;
-  reference_number?: string | null;
-  group_id?: string | null;
-}
+import { Client } from "@/types/user";
 
 export interface ClientSelectorProps {
   onClientSelect: (client: Client) => void;
@@ -40,8 +27,16 @@ export const ClientSelector = ({ onClientSelect, buttonText }: ClientSelectorPro
         
         if (error) throw error;
         
-        setClients(data || []);
-        setFilteredClients(data || []);
+        // Map the clients data to include the 'name' property
+        const mappedClients = (data || []).map(client => ({
+          ...client,
+          name: client.client_name, // Add name property mapped from client_name
+          created_at: client.created_at || new Date().toISOString(),
+          updated_at: client.updated_at || new Date().toISOString()
+        }));
+        
+        setClients(mappedClients);
+        setFilteredClients(mappedClients);
       } catch (error) {
         console.error('Error fetching clients:', error);
       } finally {

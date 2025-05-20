@@ -71,19 +71,21 @@ export default function ClientDetails() {
           // Ensure the client object has a name property matching client_name
           const clientWithName = {
             ...data,
-            name: data.client_name
+            name: data.client_name,
+            created_at: data.created_at || new Date().toISOString(),
+            updated_at: data.updated_at || new Date().toISOString()
           } as Client;
           
           setClient(clientWithName);
           
-          // Fetch client categories
-          const { data: categoryData, error: categoryError } = await supabase
-            .rpc('get_client_categories', { p_client_id: id });
-          
-          if (categoryError) {
-            console.error("Error fetching client categories:", categoryError);
-          } else {
+          try {
+            // Fetch client categories using a function that properly handles this operation
+            const { data: categoryData } = await supabase
+              .rpc('get_client_categories', { p_client_id: id });
+            
             setClientCategories(categoryData || []);
+          } catch (categoryError) {
+            console.error("Error fetching client categories:", categoryError);
           }
         }
       } catch (error) {
@@ -131,42 +133,53 @@ export default function ClientDetails() {
   
   // Update client categories
   const handleCategoryChange = async (categoryIds: string[]) => {
-    if (!client) return;
+    if (!client || !client.id) return;
     
     setIsSaving(true);
     
     try {
       // First remove all existing mappings
-      const { error: deleteError } = await supabase
-        .from('client_category_mappings')
-        .delete()
-        .eq('client_id', client.id);
-      
-      if (deleteError) throw deleteError;
+      try {
+        const { error: deleteError } = await supabase
+          .from('client_category_mappings')
+          .delete()
+          .eq('client_id', client.id);
+        
+        if (deleteError) throw deleteError;
+      } catch (error) {
+        console.error("Error deleting existing mappings:", error);
+        throw error;
+      }
       
       // Then add new mappings
       if (categoryIds.length > 0) {
-        const mappings = categoryIds.map(categoryId => ({
-          client_id: client.id,
-          category_id: categoryId
-        }));
-        
-        for (const mapping of mappings) {
-          const { error: insertError } = await supabase
-            .from('client_category_mappings')
-            .insert(mapping);
-          
-          if (insertError) throw insertError;
+        for (const categoryId of categoryIds) {
+          try {
+            const { error: insertError } = await supabase
+              .from('client_category_mappings')
+              .insert({
+                client_id: client.id,
+                category_id: categoryId
+              });
+            
+            if (insertError) throw insertError;
+          } catch (error) {
+            console.error(`Error inserting mapping for category ${categoryId}:`, error);
+            throw error;
+          }
         }
       }
       
-      // Refetch categories
-      const { data: categoryData, error: categoryError } = await supabase
-        .rpc('get_client_categories', { p_client_id: client.id });
-      
-      if (categoryError) throw categoryError;
-      
-      setClientCategories(categoryData || []);
+      try {
+        // Refetch categories
+        const { data: categoryData } = await supabase
+          .rpc('get_client_categories', { p_client_id: client.id });
+        
+        setClientCategories(categoryData || []);
+      } catch (error) {
+        console.error("Error refetching client categories:", error);
+        throw error;
+      }
       
       toast({
         title: "Catégories mises à jour",

@@ -135,6 +135,39 @@ export interface ExtendedDatabase extends Database {
           }
         ];
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: string;
+          read: boolean;
+          link: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: string;
+          read?: boolean;
+          link?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          message?: string;
+          type?: string;
+          read?: boolean;
+          link?: string | null;
+          created_at?: string;
+        };
+        Relationships: []
+      };
     };
     Views: Database['public']['Views'];
     Functions: Database['public']['Functions'];

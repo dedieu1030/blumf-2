@@ -1,30 +1,37 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { Notification } from "@/types/notification";
-import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Notification } from '@/types/notification';
 
 /**
- * Fetches all notifications for the current user
+ * Fetch user notifications
  */
-export const fetchNotifications = async (): Promise<Notification[]> => {
+export const fetchNotifications = async (userId: string): Promise<Notification[]> => {
   try {
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) {
+    // Check if notifications table exists first
+    const { data: tableExists } = await supabase
+      .from('notifications')
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+
+    if (tableExists === null) {
+      console.warn('Notifications table does not exist yet');
       return [];
     }
 
+    // If table exists, fetch notifications
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    if (error) throw error;
     
-    if (error) {
-      throw error;
-    }
-    
-    return (data as unknown as Notification[]) || [];
+    return data as Notification[];
   } catch (error) {
-    console.error("Error fetching notifications:", error);
+    console.error('Error fetching notifications:', error);
     return [];
   }
 };

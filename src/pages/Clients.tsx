@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -21,25 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Header } from "@/components/Header";
 import MobileNavigation from "@/components/MobileNavigation";
-
-// Define Client type
-interface Client {
-  id: string;
-  name: string;
-  email: string | null;
-  phone?: string | null;
-  address?: string | null;
-  notes?: string | null;
-  created_at: string;
-  updated_at: string;
-  user_id?: string;
-  invoiceCount?: number;
-  // Champs de la table clients dans Supabase
-  client_name?: string;
-  company_id?: string | null;
-  group_id?: string | null;
-  reference_number?: string | null;
-}
+import { Client } from "@/types/user";
 
 const Clients = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -71,7 +54,9 @@ const Clients = () => {
       const adaptedClients = (data || []).map(client => ({
         ...client,
         name: client.client_name, // Mapping client_name à name pour la compatibilité
-        user_id: client.company_id // Utilisation de company_id comme user_id
+        user_id: client.company_id, // Utilisation de company_id comme user_id
+        created_at: client.created_at || new Date().toISOString(),
+        updated_at: client.updated_at || new Date().toISOString()
       }));
 
       setClients(adaptedClients as Client[]);
@@ -128,6 +113,7 @@ const Clients = () => {
     setEditForm({
       id: client.id,
       name: client.name,
+      client_name: client.client_name,
       email: client.email,
       phone: client.phone,
       address: client.address,
@@ -146,7 +132,7 @@ const Clients = () => {
       const { data, error } = await supabase
         .from('clients')
         .update({
-          client_name: editForm.name,
+          client_name: editForm.name || editForm.client_name,
           email: editForm.email,
           phone: editForm.phone,
           address: editForm.address,
@@ -162,15 +148,19 @@ const Clients = () => {
       toast.success('Client mis à jour avec succès');
 
       // Mettre à jour la liste des clients avec les données mises à jour
-      const updatedClient = {
-        ...data[0],
-        name: data[0].client_name, // Ajout du champ name pour la compatibilité
-        user_id: data[0].company_id // Ajout du champ user_id pour la compatibilité
-      };
+      if (data && data.length > 0) {
+        const updatedClient = {
+          ...data[0],
+          name: data[0].client_name, // Ajout du champ name pour la compatibilité
+          user_id: data[0].company_id, // Ajout du champ user_id pour la compatibilité
+          created_at: data[0].created_at || selectedClient.created_at || new Date().toISOString(),
+          updated_at: data[0].updated_at || new Date().toISOString()
+        };
 
-      setClients(clients.map((client) => 
-        client.id === updatedClient.id ? updatedClient as Client : client
-      ));
+        setClients(clients.map((client) => 
+          client.id === updatedClient.id ? updatedClient as Client : client
+        ));
+      }
       
       setIsEditModalOpen(false);
     } catch (error) {

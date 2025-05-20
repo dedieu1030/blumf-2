@@ -22,10 +22,15 @@ export interface NotificationSettings {
 export interface Client {
   id: string;
   client_name: string;
-  name: string; // Adding name property explicitly
+  name: string; // For backward compatibility with existing code
   email?: string;
   address?: string;
   phone?: string;
   company_id?: string;
   notes?: string;
+  reference_number?: string;
+  created_at: string;
+  updated_at: string;
+  // Group ID for client grouping functionality
+  group_id?: string;
 }
