@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export interface Client {
   id: string;
-  client_name: string;
+  client_name: string;  // This is already correct
   email: string | null;
   phone: string | null;
   address: string | null;

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -63,8 +64,9 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       const fetchQuote = async () => {
         try {
           setIsLoading(true);
-          const { data, error } = await supabase
-            .from("devis")
+          // Use typecasting to overcome the Supabase TypeScript error with table names
+          const { data, error } = await (supabase
+            .from('devis') as any)
             .select(`
               *,
               items:devis_items (*)
@@ -75,7 +77,7 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
           if (error) throw error;
 
           if (data) {
-            const quote = data as Quote;
+            const quote = data as unknown as Quote;
             
             form.reset({
               client_id: quote.client_id || null,
@@ -166,8 +168,8 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       const { subtotal, taxAmount, totalAmount } = calculateTotals();
       
       // Get company ID from the first company (assuming one company per user for simplicity)
-      const { data: companies, error: companiesError } = await supabase
-        .from('companies')
+      const { data: companies, error: companiesError } = await (supabase
+        .from('companies') as any)
         .select('id')
         .limit(1);
       
@@ -181,8 +183,8 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       
       if (editQuoteId) {
         // Update existing quote
-        const { error: updateError } = await supabase
-          .from('devis')
+        const { error: updateError } = await (supabase
+          .from('devis') as any)
           .update({
             client_id: selectedClientId,
             company_id,
@@ -201,16 +203,16 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         quoteId = editQuoteId;
         
         // Delete existing items to replace with new ones
-        const { error: deleteItemsError } = await supabase
-          .from('devis_items')
+        const { error: deleteItemsError } = await (supabase
+          .from('devis_items') as any)
           .delete()
           .eq('quote_id', quoteId);
         
         if (deleteItemsError) throw new Error(deleteItemsError.message);
       } else {
         // Insert new quote
-        const { data: quoteData, error: insertError } = await supabase
-          .from('devis')
+        const { data: quoteData, error: insertError } = await (supabase
+          .from('devis') as any)
           .insert({
             client_id: selectedClientId,
             company_id,
@@ -220,7 +222,8 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
             subtotal,
             tax_amount: taxAmount,
             total_amount: totalAmount,
-            notes: data.notes
+            notes: data.notes,
+            quote_number: `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
           })
           .select('id')
           .single();
@@ -239,8 +242,8 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       }));
       
       if (itemsToInsert.length > 0) {
-        const { error: itemsError } = await supabase
-          .from('devis_items')
+        const { error: itemsError } = await (supabase
+          .from('devis_items') as any)
           .insert(itemsToInsert);
         
         if (itemsError) throw new Error(itemsError.message);

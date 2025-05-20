@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,15 @@ export function InvoiceList({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingResult, setProcessingResult] = useState<{success: boolean, error?: string} | null>(null);
   
-  const handleCopyLink = (paymentUrl: string) => {
+  const handleCopyLink = (paymentUrl: string | undefined) => {
+    if (!paymentUrl) {
+      toast({
+        title: t("error"),
+        description: t("noPaymentLinkAvailable", "Aucun lien de paiement disponible")
+      });
+      return;
+    }
+    
     navigator.clipboard.writeText(paymentUrl);
     toast({
       title: t("linkCopied"),
@@ -230,7 +239,7 @@ export function InvoiceList({
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                onClick={() => handleCopyLink(invoice.paymentUrl!)}
+                                onClick={() => handleCopyLink(invoice.paymentUrl)}
                               >
                                 <Copy className="h-4 w-4" />
                               </Button>
@@ -245,7 +254,7 @@ export function InvoiceList({
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                onClick={() => window.open(invoice.paymentUrl, '_blank')}
+                                onClick={() => invoice.paymentUrl ? window.open(invoice.paymentUrl, '_blank') : null}
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>
