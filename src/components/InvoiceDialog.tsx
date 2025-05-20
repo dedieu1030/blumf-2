@@ -28,6 +28,7 @@ import { CustomInvoiceText } from "@/components/CustomInvoiceText";
 import { SignatureCanvas } from "@/components/SignatureCanvas";
 import { SignatureSelector } from "@/components/SignatureSelector";
 import { SignatureDisplay } from "@/components/SignatureDisplay";
+import { createQuote, updateQuote, updateQuoteItems, fetchQuoteById, generateQuoteNumber } from '@/services/quoteService';
 
 // Define invoice template types
 const invoiceTemplates = [
@@ -85,14 +86,13 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 6; // Augmenté de 5 à 6 pour ajouter l'étape des textes personnalisés
+  const totalSteps = 6; 
   const [isLoading, setIsLoading] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
-  // Common invoice data state
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [clientName, setClientName] = useState("");
@@ -104,11 +104,10 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     {
       id: Date.now().toString(),
       description: "",
-      quantity: "1",
-      unitPrice: "0",
-      tva: "20",
-      total: "0",
-      totalPrice: 0
+      quantity: 1,
+      unit_price: 0,
+      tax_rate: 20,
+      total: 0
     }
   ]);
   const [notes, setNotes] = useState("");
@@ -117,13 +116,11 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
   const [taxTotal, setTaxTotal] = useState(0);
   const [total, setTotal] = useState(0);
 
-  // Nouvelles propriétés pour les réductions et textes personnalisés
   const [globalDiscount, setGlobalDiscount] = useState<DiscountInfo | undefined>(undefined);
   const [introText, setIntroText] = useState("");
   const [conclusionText, setConclusionText] = useState("");
   const [footerText, setFooterText] = useState("");
 
-  // Payment Terms state
   const [paymentDelay, setPaymentDelay] = useState("15");
   const [dueDate, setDueDate] = useState("");
   const [customTerms, setCustomTerms] = useState("");
@@ -131,22 +128,17 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
   const [selectedTermTemplateId, setSelectedTermTemplateId] = useState("");
   const [paymentTermsTemplates, setPaymentTermsTemplates] = useState<PaymentTermTemplate[]>([]);
   
-  // Payment Methods state
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodDetails[]>([
-    { type: "card", enabled: true }
+    { method: "card", enabled: true }
   ]);
   const [defaultPaymentMethods, setDefaultPaymentMethods] = useState<PaymentMethodDetails[]>([]);
 
-  // Company profile state
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
 
-  // État pour le dialogue de signature
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const [signatureData, setSignatureData] = useState<SignatureData | undefined>(undefined);
 
-  // Generate a default invoice number on component mount
   useEffect(() => {
-    // Format: INV-YYYYMMDD-XX (where XX is a random number)
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -156,9 +148,7 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     setInvoiceNumber(`INV-${year}${month}${day}-${random}`);
   }, []);
 
-  // Load company profile, default payment methods, and payment term templates on component mount
   useEffect(() => {
-    // Load company profile
     const savedProfile = localStorage.getItem('companyProfile');
     if (savedProfile) {
       try {
@@ -169,30 +159,27 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
       }
     }
     
-    // Load default payment methods
     const savedMethods = localStorage.getItem('defaultPaymentMethods');
     if (savedMethods) {
       try {
         const methods = JSON.parse(savedMethods);
         setDefaultPaymentMethods(methods);
-        setPaymentMethods(methods); // Use default methods as initial state
+        setPaymentMethods(methods);
       } catch (e) {
         console.error("Erreur lors du parsing des méthodes de paiement", e);
       }
     }
     
-    // Load payment term templates
     const savedTerms = localStorage.getItem('paymentTermsTemplates');
     if (savedTerms) {
       try {
         const terms = JSON.parse(savedTerms);
         setPaymentTermsTemplates(terms);
         
-        // If there's a default template, use it
         const defaultTemplate = terms.find((t: PaymentTermTemplate) => t.isDefault);
         if (defaultTemplate) {
           setSelectedTermTemplateId(defaultTemplate.id);
-          setPaymentDelay(defaultTemplate.delay);
+          setPaymentDelay(defaultTemplate.days.toString());
           if (defaultTemplate.customDate) setDueDate(defaultTemplate.customDate);
           setCustomTerms(defaultTemplate.termsText);
           setUseCustomTerms(true);
@@ -203,15 +190,12 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   }, []);
 
-  // Handle service line updates with tax and discounts properly
   const updateServiceLine = (id: string, field: keyof ServiceLine | 'tva' | 'discount', value: any) => {
     setServiceLines(serviceLines.map(line => {
       if (line.id === id) {
         if (field === 'tva') {
-          // Special handling for tva field which isn't in the ServiceLine type directly
-          return { ...line, tva: value };
+          return { ...line, tax_rate: parseFloat(value) || 0 };
         } else if (field === 'discount') {
-          // Special handling for discount field
           return { ...line, discount: value };
         } else {
           return { ...line, [field]: value };
@@ -221,53 +205,46 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }));
   };
 
-  // Calculate totals when service lines or global discount changes
   useEffect(() => {
     let calculatedSubtotal = 0;
     let calculatedTaxTotal = 0;
     
     serviceLines.forEach(line => {
-      const lineQuantity = parseFloat(line.quantity) || 0;
-      const lineUnitPrice = parseFloat(line.unitPrice) || 0;
-      const lineTva = parseFloat((line as any).tva || '0') || 0;
+      const lineQuantity = typeof line.quantity === 'string' ? parseFloat(line.quantity) || 0 : line.quantity;
+      const lineUnitPrice = typeof line.unit_price === 'string' ? parseFloat(line.unit_price) || 0 : line.unit_price;
+      const lineTaxRate = typeof line.tax_rate === 'string' ? parseFloat(line.tax_rate) || 0 : (line.tax_rate || 0);
       
-      // Calculate line total after applying line discount
       let lineTotal = lineQuantity * lineUnitPrice;
       
       if (line.discount && line.discount.value > 0) {
         if (line.discount.type === 'percentage') {
           const discountAmount = lineTotal * (line.discount.value / 100);
           lineTotal -= discountAmount;
-          // Store discount amount for display
           line.discount.amount = Number(discountAmount.toFixed(2));
-        } else { // fixed amount
+        } else {
           lineTotal = Math.max(0, lineTotal - line.discount.value);
-          // Store discount amount
           line.discount.amount = line.discount.value;
         }
       }
       
-      const lineTaxAmount = lineTotal * (lineTva / 100);
+      const lineTaxAmount = lineTotal * (lineTaxRate / 100);
       
       calculatedSubtotal += lineTotal;
       calculatedTaxTotal += lineTaxAmount;
     });
     
-    // Calculate total after applying global discount
     let calculatedTotal = calculatedSubtotal + calculatedTaxTotal;
     
     if (globalDiscount && globalDiscount.value > 0) {
       if (globalDiscount.type === 'percentage') {
         const discountAmount = calculatedSubtotal * (globalDiscount.value / 100);
         calculatedTotal -= discountAmount;
-        // Store discount amount for display
         setGlobalDiscount({
           ...globalDiscount,
           amount: Number(discountAmount.toFixed(2))
         });
-      } else { // fixed amount
+      } else {
         calculatedTotal = Math.max(0, calculatedTotal - globalDiscount.value);
-        // Store discount amount
         setGlobalDiscount({
           ...globalDiscount,
           amount: globalDiscount.value
@@ -279,25 +256,22 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     setTaxTotal(calculatedTaxTotal);
     setTotal(calculatedTotal);
     
-    // Update the total in service lines
     const updatedServiceLines = serviceLines.map(line => {
-      const quantity = parseFloat(line.quantity) || 0;
-      const unitPrice = parseFloat(line.unitPrice) || 0;
+      const quantity = typeof line.quantity === 'string' ? parseFloat(line.quantity) || 0 : line.quantity;
+      const unitPrice = typeof line.unit_price === 'string' ? parseFloat(line.unit_price) || 0 : line.unit_price;
       let totalPrice = quantity * unitPrice;
       
-      // Apply line discount
       if (line.discount && line.discount.value > 0) {
         if (line.discount.type === 'percentage') {
           totalPrice *= (1 - line.discount.value / 100);
-        } else { // fixed amount
+        } else {
           totalPrice = Math.max(0, totalPrice - line.discount.value);
         }
       }
       
       return {
         ...line,
-        total: totalPrice.toFixed(2),
-        totalPrice: totalPrice
+        total: totalPrice,
       };
     });
     
@@ -306,23 +280,20 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   }, [serviceLines, globalDiscount]);
 
-  // Add a new service line
   const addServiceLine = () => {
     setServiceLines([
       ...serviceLines,
       {
         id: Date.now().toString(),
         description: "",
-        quantity: "1",
-        unitPrice: "0",
-        tva: "20", // Added as custom property
-        total: "0",
-        totalPrice: 0
-      } as ServiceLine & { tva: string, total: string }
+        quantity: 1,
+        unit_price: 0,
+        tax_rate: 20,
+        total: 0
+      }
     ]);
   };
 
-  // Remove a service line
   const removeServiceLine = (id: string) => {
     if (serviceLines.length > 1) {
       setServiceLines(serviceLines.filter(line => line.id !== id));
@@ -335,7 +306,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   };
 
-  // Handle navigation between steps
   const nextStep = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
@@ -348,43 +318,21 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   };
 
-  // Save as draft
   const saveAsDraft = () => {
-    // In a real app, this would save to database
     toast({
       title: "Brouillon enregistré",
       description: "Votre facture a été sauvegardée comme brouillon"
     });
     
-    // Close dialog and navigate to invoices list
     onOpenChange(false);
     navigate("/invoices");
   };
 
-  // Save a payment term template
-  const savePaymentTermTemplate = (template: PaymentTermTemplate) => {
-    // Update local state
-    setSelectedTermTemplateId(template.id);
-    
-    // Update templates in localStorage
-    const updatedTemplates = [...paymentTermsTemplates, template];
-    setPaymentTermsTemplates(updatedTemplates);
-    localStorage.setItem('paymentTermsTemplates', JSON.stringify(updatedTemplates));
-    
-    toast({
-      title: "Modèle enregistré",
-      description: `Le modèle "${template.name}" a été créé avec succès`
-    });
-  };
-
-  // Updated function to handle preview with proper type handling
   const handlePreviewInvoice = async () => {
     setIsLoading(true);
     
     try {
-      // Check if company profile exists and load if needed
       if (!companyProfile) {
-        // Attempt to load from localStorage
         const savedProfile = localStorage.getItem('companyProfile');
         if (savedProfile) {
           try {
@@ -410,15 +358,13 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
         }
       }
       
-      // Get the numeric tax rate value
       const numericTaxRate = typeof companyProfile?.taxRate === 'string' 
         ? parseFloat(companyProfile.taxRate) || 0
         : Number(companyProfile?.taxRate || 0);
       
-      // Prepare invoice data for preview with all required properties
       const invoiceData: InvoiceData = {
         invoiceNumber,
-        invoiceDate: invoiceDate,  // Using invoiceDate instead of issueDate
+        invoiceDate: invoiceDate,
         issueDate: invoiceDate,
         dueDate: paymentDelay === "custom" ? dueDate : "",
         clientName,
@@ -434,7 +380,7 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
           bankAccount: "",
           bankName: "",
           accountHolder: "",
-          taxRate: 20, // Ensure this is a number
+          taxRate: 20,
           termsAndConditions: "",
           thankYouMessage: "",
           defaultCurrency: "EUR"
@@ -442,7 +388,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
         serviceLines: serviceLines,
         items: serviceLines,
         subtotal,
-        // Ensure taxRate is always a number
         taxRate: numericTaxRate,
         taxAmount: taxTotal,
         total: total,
@@ -453,7 +398,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
         templateId: selectedTemplate,
         paymentTermsId: selectedTermTemplateId,
         customPaymentTerms: useCustomTerms ? customTerms : "",
-        // Add new properties for discounts and custom texts
         discount: globalDiscount,
         introText: introText || undefined,
         conclusionText: conclusionText || undefined,
@@ -491,7 +435,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   };
 
-  // Generate and send invoice with Stripe payment link
   const generateAndSendInvoice = async () => {
     if (!clientName || !clientEmail) {
       toast({
@@ -502,7 +445,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
       return;
     }
 
-    // Load company profile if not already loaded
     if (!companyProfile) {
       const savedProfile = localStorage.getItem('companyProfile');
       if (savedProfile) {
@@ -530,15 +472,13 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     setIsLoading(true);
     
     try {
-      // Get the numeric tax rate value
       const numericTaxRate = typeof companyProfile?.taxRate === 'string' 
         ? parseFloat(companyProfile.taxRate) || 0
         : Number(companyProfile?.taxRate || 0);
       
-      // Prepare complete invoice data
       const invoiceData: InvoiceData = {
         invoiceNumber,
-        invoiceDate: invoiceDate,  // Using invoiceDate instead of issueDate
+        invoiceDate: invoiceDate,
         issueDate: invoiceDate,
         dueDate: paymentDelay === "custom" ? dueDate : "",
         clientName,
@@ -554,7 +494,7 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
           bankAccount: "",
           bankName: "",
           accountHolder: "",
-          taxRate: 20, // Ensure this is a number
+          taxRate: 20,
           termsAndConditions: "",
           thankYouMessage: "",
           defaultCurrency: "EUR"
@@ -562,7 +502,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
         serviceLines: serviceLines,
         items: serviceLines,
         subtotal,
-        // Ensure taxRate is always a number
         taxRate: numericTaxRate,
         taxAmount: taxTotal,
         total: total,
@@ -573,36 +512,25 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
         templateId: selectedTemplate,
         paymentTermsId: selectedTermTemplateId,
         customPaymentTerms: useCustomTerms ? customTerms : "",
-        // Add new properties for discounts and custom texts
         discount: globalDiscount,
         introText: introText || undefined,
         conclusionText: conclusionText || undefined,
         footerText: footerText || undefined
       };
       
-      // Prepare invoice data with signature
       invoiceData.signature = signatureData;
       invoiceData.signatureDate = new Date().toISOString();
       
-      // Create Stripe checkout session
       const stripeSession = await createStripeCheckoutSession(invoiceData);
       
       if (stripeSession.success && stripeSession.url) {
-        // Store payment URL and set QR code URL directly with the payment URL
         setPaymentUrl(stripeSession.url);
-        // The QR code is now generated by the QRCodeDisplay component, no need for a separate URL
         
         toast({
           title: "Facture générée",
           description: "La facture a été générée avec un lien de paiement Stripe"
         });
         
-        // In a real implementation, this would:
-        // 1. Save the invoice to the database with the Stripe session ID
-        // 2. Generate and send the PDF with payment link to the client
-        // 3. Update the UI to show the payment status
-        
-        // Close dialog and navigate to invoices list after a delay
         setTimeout(() => {
           onOpenChange(false);
           navigate("/invoices");
@@ -626,7 +554,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   };
 
-  // Step content rendering based on current step
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -655,7 +582,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
       case 2:
         return (
           <div className="space-y-4 py-4">
-            {/* Ajout du sélecteur de client existant */}
             <div className="mb-4">
               <ClientSelector onClientSelect={handleClientSelect} />
               <div className="text-center my-4 text-sm text-muted-foreground">- ou -</div>
@@ -738,8 +664,8 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
                   <Label htmlFor={`unit-price-${index}`} className="md:hidden">Prix unitaire (€)</Label>
                   <Input 
                     id={`unit-price-${index}`}
-                    value={line.unitPrice}
-                    onChange={(e) => updateServiceLine(line.id, "unitPrice", e.target.value)}
+                    value={line.unit_price}
+                    onChange={(e) => updateServiceLine(line.id, "unit_price", e.target.value)}
                     placeholder="200.00" 
                   />
                 </div>
@@ -747,8 +673,8 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
                   <Label htmlFor={`tva-${index}`} className="md:hidden">TVA (%)</Label>
                   <Input 
                     id={`tva-${index}`}
-                    value={line.tva}
-                    onChange={(e) => updateServiceLine(line.id, "tva", e.target.value)}
+                    value={line.tax_rate}
+                    onChange={(e) => updateServiceLine(line.id, "tax_rate", e.target.value)}
                     placeholder="20" 
                   />
                 </div>
@@ -757,7 +683,7 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
                   <DiscountSelector
                     discount={line.discount}
                     onDiscountChange={(discount) => updateServiceLine(line.id, "discount", discount)}
-                    baseAmount={parseFloat(line.quantity) * parseFloat(line.unitPrice)}
+                    baseAmount={parseFloat(line.quantity) * parseFloat(line.unit_price)}
                     compact={true}
                   />
                 </div>
@@ -840,7 +766,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
       case 4:
         return (
           <div className="space-y-6 py-4">
-            {/* Payment Terms Section */}
             <div className="mb-8">
               <h3 className="text-lg font-medium mb-4">Conditions de paiement</h3>
               <PaymentTermsSelector
@@ -859,7 +784,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
               />
             </div>
             
-            {/* Payment Methods Section */}
             <div className="border-t pt-6">
               <PaymentMethodSelector
                 methods={paymentMethods}
@@ -868,7 +792,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
               />
             </div>
             
-            {/* Template Selection Section */}
             <div className="border-t pt-6">
               <Label className="block mb-4 text-lg font-medium">Template de facture</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -881,7 +804,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
                     onClick={() => setSelectedTemplate(template.id)}
                   >
                     <div className={`${template.previewBg} h-24 w-full mb-3 rounded`}>
-                      {/* Template preview */}
                     </div>
                     <div className="text-left">
                       <h3 className="font-medium text-base">{template.name}</h3>
@@ -915,7 +837,7 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
           </div>
         );
       
-      case 6: // Previously case 5
+      case 6:
         return (
           <div className="space-y-6 py-4">
             <div className="space-y-2">
@@ -933,7 +855,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
                 )}
               </div>
               
-              {/* Dialogue de signature */}
               <Dialog open={signatureDialogOpen} onOpenChange={setSignatureDialogOpen}>
                 <DialogContent className="sm:max-w-[600px]">
                   <DialogHeader>
@@ -1020,91 +941,10 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   };
 
-  // Preview modal content - Optimized for better space utilization
-  const renderPreviewContent = () => {
-    if (!previewData) return null;
-    
-    // Get the numeric tax rate value for the preview
-    const numericTaxRate = typeof companyProfile?.taxRate === 'string' 
-      ? parseFloat(companyProfile.taxRate) || 0
-      : Number(companyProfile?.taxRate || 0);
-    
-    // Create the complete invoice data object to pass to the preview component
-    const currentInvoiceData: InvoiceData = {
-      invoiceNumber,
-      invoiceDate: invoiceDate,  // Using invoiceDate instead of issueDate
-      issueDate: invoiceDate,
-      dueDate: paymentDelay === "custom" ? dueDate : "",
-      clientName,
-      clientEmail,
-      clientAddress,
-      clientPhone: "",
-      issuerInfo: companyProfile || {
-        name: "",
-        address: "",
-        email: "",
-        emailType: "professional",
-        phone: "",
-        bankAccount: "",
-        bankName: "",
-        accountHolder: "",
-        taxRate: 20, // Ensure this is a number
-        termsAndConditions: "",
-        thankYouMessage: "",
-        defaultCurrency: "EUR"
-      },
-      serviceLines: serviceLines,
-      items: serviceLines,
-      subtotal,
-      // Ensure taxRate is always a number
-      taxRate: numericTaxRate,
-      taxAmount: taxTotal,
-      total: total,
-      totalAmount: total,
-      paymentDelay,
-      paymentMethods,
-      notes,
-      templateId: selectedTemplate,
-      paymentTermsId: selectedTermTemplateId,
-      customPaymentTerms: useCustomTerms ? customTerms : "",
-      // Add new properties for discounts and custom texts
-      discount: globalDiscount,
-      introText: introText || undefined,
-      conclusionText: conclusionText || undefined,
-      footerText: footerText || undefined
-    };
-    
-    return (
-      <div className="flex flex-col h-full">
-        {/* Render the HTML content using the InvoicePreview component */}
-        {previewOpen && previewData.htmlContent && (
-          <InvoicePreview 
-            htmlContent={previewData.htmlContent}
-            invoiceData={currentInvoiceData}
-            templateId={selectedTemplate}
-            showDownloadButton={true}
-          />
-        )}
-        
-        {/* If no HTML content available, show the image */}
-        {!previewData.htmlContent && previewData.previewUrl && (
-          <div className="flex-1 overflow-auto">
-            <img 
-              src={previewData.previewUrl} 
-              alt="Aperçu de la facture" 
-              className="max-w-full h-auto mx-auto"
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const handleClientSelect = (client: Client) => {
     setClientName(client.client_name);
     setClientEmail(client.email);
     setClientAddress(client.address);
-    // Since we're selecting an existing client, we don't need to save it again
     setSaveClient(false);
     
     toast({
@@ -1113,11 +953,9 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     });
   };
 
-  // Add new state for product catalog and selection
   const [productCatalog, setProductCatalog] = useState<Product[]>([]);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
-  // Load product catalog
   useEffect(() => {
     const loadProducts = async () => {
       const products = await fetchProducts();
@@ -1129,18 +967,16 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     }
   }, [open]);
 
-  // Add a function to handle product selection from catalog
   const handleAddProductFromCatalog = (product: Product) => {
     if (!product) return;
 
     const newServiceLine: ServiceLine = {
       id: Date.now().toString(),
       description: product.description || product.name,
-      quantity: "1",
-      unitPrice: (product.price_cents / 100).toString(),
-      tva: product.tax_rate?.toString() || "20",
-      total: (product.price_cents / 100).toString(),
-      totalPrice: product.price_cents / 100  // Keep this as a number, don't convert to string
+      quantity: 1,
+      unit_price: (product.price_cents / 100),
+      tax_rate: product.tax_rate?.toString() || "20",
+      total: (product.price_cents / 100)
     };
 
     setServiceLines([...serviceLines, newServiceLine]);
@@ -1156,7 +992,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
     "Notes et signature"
   ];
 
-  // Create product catalog modal
   const renderProductCatalogModal = () => {
     return (
       <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
@@ -1219,7 +1054,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
             </DialogTitle>
           </DialogHeader>
           
-          {/* Progress Indicator */}
           <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-1 mb-4">
             <div 
               className="bg-violet h-full transition-all duration-300 ease-in-out" 
@@ -1227,10 +1061,8 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
             />
           </div>
           
-          {/* Step Content */}
           {renderStepContent()}
           
-          {/* Step Navigation */}
           <DialogFooter className="flex justify-between items-center pt-4">
             <div className="flex-1">
               {currentStep > 1 && (
@@ -1297,7 +1129,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
         </DialogContent>
       </Dialog>
       
-      {/* Preview Dialog - Optimized to maximize content space */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="sm:max-w-[900px] max-h-[90vh]">
           <DialogHeader className="pb-0">
@@ -1330,7 +1161,6 @@ export function InvoiceDialog({ open, onOpenChange, onGenerateInvoice, isGenerat
         </DialogContent>
       </Dialog>
       
-      {/* Add the product catalog modal */}
       {renderProductCatalogModal()}
     </>
   );

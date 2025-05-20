@@ -1,337 +1,276 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { InvoiceDialog } from "./InvoiceDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { InvoiceStatus } from "./InvoiceStatus";
-import { Download, Send, Copy, QrCode, ExternalLink, Check, Loader2 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { InvoicePaymentConfirmation } from "./InvoicePaymentConfirmation";
-import { InvoicePaymentConfirmDialog } from "./InvoicePaymentConfirmDialog";
-import { useToast } from "@/hooks/use-toast";
-import { useTranslation } from "react-i18next";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Eye, Pencil, Trash2, Copy, Loader2 } from "lucide-react";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { InvoiceMobileCard } from "./InvoiceMobileCard";
-import { Invoice } from '@/types/invoice';
+import { Invoice, Status } from '@/types/invoice';
+import { CreditCard } from "lucide-react";
 
-export interface InvoiceListProps {
-  invoices: Invoice[];
+interface InvoiceListProps {
   limit?: number;
-  showActions?: boolean;
-  title?: string;
-  showViewAll?: boolean;
-  onInvoiceStatusChanged?: () => void;
+  onRefresh?: () => void;
 }
 
-export function InvoiceList({ 
-  invoices, 
-  limit,
-  showActions = true,
-  title,
-  showViewAll = false,
-  onInvoiceStatusChanged
-}: InvoiceListProps) {
-  const displayedInvoices = limit ? invoices.slice(0, limit) : invoices;
-  const { toast } = useToast();
-  const { t } = useTranslation();
-  const isMobile = useIsMobile();
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+export function QuoteList({ limit, onRefresh }: InvoiceListProps) {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editInvoiceId, setEditInvoiceId] = useState<string | undefined>(undefined);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingResult, setProcessingResult] = useState<{success: boolean, error?: string} | null>(null);
-  
-  const handleCopyLink = (paymentUrl: string | undefined) => {
-    if (!paymentUrl) {
-      toast({
-        title: t("error"),
-        description: t("noPaymentLinkAvailable", "Aucun lien de paiement disponible")
-      });
-      return;
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+
+  const fetchInvoices = async () => {
+    try {
+      setIsLoading(true);
+      // Use any type to bypass TypeScript restrictions
+      const invoicesQuery = supabase.from('invoices') as any;
+      const { data, error } = await invoicesQuery
+        .select(`
+          *,
+          client:clients (id, client_name)
+        `)
+        .order('date', { ascending: false });
+      
+      if (error) throw error;
+      
+      setInvoices(data || []);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      toast.error("Erreur lors du chargement des factures");
+    } finally {
+      setIsLoading(false);
     }
-    
-    navigator.clipboard.writeText(paymentUrl);
-    toast({
-      title: t("linkCopied"),
-      description: t("paymentLinkCopiedToClipboard")
-    });
   };
 
-  const handleConfirmPayment = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setIsConfirmDialogOpen(true);
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const handleEdit = (invoice: Invoice) => {
+    setEditInvoiceId(invoice.id);
+    setDialogOpen(true);
   };
-  
-  const handlePaymentDetailsSubmitted = async (paymentDetails: any) => {
-    if (!selectedInvoice) return;
-    
-    setIsProcessing(true);
-    setIsConfirmDialogOpen(false);
-    
+
+  const handleDelete = async (invoice: Invoice) => {
     try {
-      // Call the new Edge Function to mark invoice as paid
-      const { data, error } = await supabase.functions.invoke('mark-invoice-paid', {
-        body: { 
-          invoiceId: selectedInvoice.id,
-          paymentDetails: {
-            ...paymentDetails,
-            date: paymentDetails.date.toISOString()
-          }
-        }
-      });
+      // Use any type to bypass TypeScript restrictions
+      const invoicesQuery = supabase.from('invoices') as any;
+      const { error } = await invoicesQuery
+        .delete()
+        .eq('id', invoice.id);
       
-      if (error) {
-        console.error("Error marking invoice as paid:", error);
-        setProcessingResult({
-          success: false,
-          error: error.message || t("paymentConfirmError")
-        });
-        return;
-      }
+      if (error) throw error;
       
-      setProcessingResult({
-        success: true
-      });
-      
-      // Open the payment confirmation dialog
-      setIsPaymentDialogOpen(true);
+      toast.success("Facture supprimée avec succès");
+      fetchInvoices();
     } catch (error) {
-      console.error("Error calling Edge Function:", error);
-      setProcessingResult({
-        success: false,
-        error: error instanceof Error ? error.message : t("paymentConfirmError")
-      });
+      console.error('Error deleting invoice:', error);
+      toast.error("Erreur lors de la suppression de la facture");
     } finally {
-      setIsProcessing(false);
+      setDeleteDialogOpen(false);
+      setSelectedInvoice(null);
     }
   };
-  
-  // Function to close dialogs and refresh data
+
+  const confirmDelete = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setDeleteDialogOpen(true);
+  };
+
   const handleDialogClose = () => {
-    setIsPaymentDialogOpen(false);
-    setProcessingResult(null);
-    
-    // Only refresh data if callback is provided and payment was successful
-    if (onInvoiceStatusChanged && processingResult?.success) {
-      try {
-        onInvoiceStatusChanged();
-      } catch (error) {
-        console.error("Error refreshing invoice data:", error);
-        toast({
-          title: t("refreshError", "Erreur de rafraîchissement"),
-          description: t("errorRefreshingData", "Erreur lors du rafraîchissement des données. Veuillez réessayer."),
-          variant: "destructive"
-        });
-      }
+    setDialogOpen(false);
+    setEditInvoiceId(undefined);
+    fetchInvoices();
+    if (onRefresh) onRefresh();
+  };
+
+  const duplicateInvoice = async (invoice: Invoice) => {
+    try {
+      // Duplicate the invoice but generate a new invoice number
+      const newInvoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+      
+      // Create a new invoice with most of the same data
+      const invoicesQuery = supabase.from('invoices') as any;
+      const { data, error } = await invoicesQuery
+        .insert({
+          client_id: invoice.client_id,
+          company_id: invoice.company_id,
+          invoice_number: newInvoiceNumber,
+          date: new Date().toISOString().split('T')[0],
+          dueDate: invoice.dueDate,
+          amount: invoice.amount,
+          status: 'draft'
+        })
+        .select('id')
+        .single();
+      
+      if (error) throw error;
+      
+      toast.success("Facture dupliquée avec succès");
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error duplicating invoice:', error);
+      toast.error("Erreur lors de la duplication de la facture");
     }
-    
-    // Clean up states
-    setSelectedInvoice(null);
+  };
+
+  const viewInvoice = (id: string) => {
+    navigate(`/invoices/${id}`);
+  };
+
+  const handleStatusChange = async (invoice: Invoice, newStatus: Status) => {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: newStatus })
+        .eq('id', invoice.id);
+      
+      if (error) throw error;
+      
+      toast.success(`Statut mis à jour à ${newStatus}`);
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error updating invoice status:', error);
+      toast.error("Erreur lors de la mise à jour du statut");
+    }
   };
   
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "draft":
+        return <Badge variant="outline">Brouillon</Badge>;
+      case "pending":
+        return <Badge variant="secondary">En attente</Badge>;
+      case "paid":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Payée</Badge>;
+      case "overdue":
+        return <Badge variant="destructive">En retard</Badge>;
+      case "cancelled":
+        return <Badge variant="destructive">Annulée</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">{title}</h2>
-        {showViewAll && (
-          <Button variant="link" className="text-violet">
-            {t("viewAll")}
-          </Button>
-        )}
-      </div>
-      
-      {/* Affichage mobile (vue par cartes) */}
-      {isMobile ? (
-        <div className="space-y-2 relative">
-          {isProcessing && (
-            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-sm">{t("refreshing", "Actualisation...")}</span>
-              </div>
-            </div>
-          )}
-          
-          {displayedInvoices.map((invoice) => (
-            <InvoiceMobileCard 
-              key={invoice.id}
-              invoice={invoice}
-              onCopyLink={handleCopyLink}
-              onConfirmPayment={handleConfirmPayment}
-            />
-          ))}
-          
-          {displayedInvoices.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              {t("noInvoicesFound", "Aucune facture trouvée")}
-            </div>
-          )}
+    <>
+      {isLoading ? (
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
       ) : (
-        // Affichage desktop (vue tableau)
-        <div className="border rounded-lg overflow-hidden relative">
-          {isProcessing && (
-            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-sm">{t("refreshing", "Actualisation...")}</span>
-              </div>
+        <div className="container mx-auto py-8">
+          {invoices.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Aucune facture trouvée.
             </div>
-          )}
-          
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("invoice")}</TableHead>
-                <TableHead>{t("client")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("amount")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead className="text-right">{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayedInvoices.map((invoice) => (
-                <TableRow 
-                  key={invoice.id}
-                  className={invoice.status === "overdue" ? "bg-amber-50" : ""}
-                >
-                  <TableCell className="font-medium">{invoice.number}</TableCell>
-                  <TableCell>{invoice.client}</TableCell>
-                  <TableCell>{invoice.date}</TableCell>
-                  <TableCell>{invoice.amount}</TableCell>
-                  <TableCell>
-                    <InvoiceStatus status={invoice.status} />
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{t("downloadInvoice")}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{t("sendByEmail")}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      
-                      {invoice.paymentUrl && (
-                        <>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleCopyLink(invoice.paymentUrl)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{t("copyPaymentLink")}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => invoice.paymentUrl ? window.open(invoice.paymentUrl, '_blank') : null}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{t("openPaymentLink")}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <QrCode className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{t("showQrCode")}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </>
-                      )}
-
-                      {/* Bouton pour marquer la facture comme payée */}
-                      {(invoice.status === "pending" || invoice.status === "overdue") && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="text-success hover:bg-success/10"
-                              onClick={() => handleConfirmPayment(invoice)}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{t("markAsPaid")}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </TooltipProvider>
-                  </TableCell>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Numéro</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date d'émission</TableHead>
+                  <TableHead>Montant</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {invoices.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                    <TableCell>{invoice.client_name || (invoice.client ? invoice.client.client_name : 'Client inconnu')}</TableCell>
+                    <TableCell>{format(new Date(invoice.date), "P", { locale: fr })}</TableCell>
+                    <TableCell>{invoice.amount} €</TableCell>
+                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {invoice.paymentUrl && (
+                          <Button variant="ghost" size="icon" onClick={() => window.open(invoice.paymentUrl, '_blank')}>
+                            <CreditCard className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => viewInvoice(invoice.id)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(invoice)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => duplicateInvoice(invoice)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Êtes-vous sûr(e) ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action supprimera la facture définitivement.
+                                Voulez-vous continuer ?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => confirmDelete(invoice)}>Supprimer</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       )}
-      
-      {/* Dialogue de confirmation préalable */}
-      {selectedInvoice && (
-        <InvoicePaymentConfirmDialog
-          open={isConfirmDialogOpen}
-          onOpenChange={setIsConfirmDialogOpen}
-          invoiceId={selectedInvoice.id}
-          invoiceNumber={selectedInvoice.invoice_number}
-          onConfirm={handlePaymentDetailsSubmitted}
-        />
-      )}
-      
-      {/* Dialogue de confirmation de réussite du paiement */}
-      {selectedInvoice && processingResult && (
-        <InvoicePaymentConfirmation
-          isOpen={isPaymentDialogOpen}
-          onOpenChange={setIsPaymentDialogOpen}
-          invoice={{
-            id: selectedInvoice.id,
-            invoice_number: selectedInvoice.invoice_number,
-            amount: parseFloat(selectedInvoice.amount.replace(/[^\d.-]/g, ''))
-          }}
-          success={processingResult.success}
-          error={processingResult.error}
-          onConfirm={handleDialogClose}
-        />
-      )}
-    </div>
+
+      <InvoiceDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editInvoiceId={editInvoiceId}
+        onSuccess={handleDialogClose}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmation de suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette facture ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedInvoice(null)}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleDelete(selectedInvoice!)}>Supprimer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
-
-export default InvoiceList;

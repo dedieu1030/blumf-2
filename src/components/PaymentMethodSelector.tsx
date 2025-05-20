@@ -16,7 +16,7 @@ interface PaymentMethodSelectorProps {
   onSaveDefault?: (methods: PaymentMethodDetails[]) => void;
 }
 
-const paymentMethodLabels: Record<PaymentMethod, string> = {
+const paymentMethodLabels: Record<string, string> = {
   card: "Carte bancaire (Stripe)",
   transfer: "Virement bancaire",
   paypal: "PayPal",
@@ -47,7 +47,7 @@ export function PaymentMethodSelector({
     }
   }, []);
 
-  const updateMethod = (type: PaymentMethod, enabled: boolean, details?: string) => {
+  const updateMethod = (type: string, enabled: boolean, details?: string) => {
     const existingIndex = methods.findIndex(m => m.type === type);
     const updatedMethods = [...methods];
     
@@ -68,11 +68,11 @@ export function PaymentMethodSelector({
     onChange(updatedMethods);
   };
 
-  const getMethodStatus = (type: PaymentMethod): { enabled: boolean, details?: string } => {
+  const getMethodStatus = (type: string): { enabled: boolean, details?: string } => {
     const method = methods.find(m => m.type === type);
     if (method) {
       let methodDetails = typeof method.details === 'string' ? method.details : undefined;
-      return { enabled: method.enabled, details: methodDetails };
+      return { enabled: !!method.enabled, details: methodDetails };
     }
     return { enabled: false };
   };

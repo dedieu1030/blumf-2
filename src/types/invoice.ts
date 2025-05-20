@@ -13,7 +13,7 @@ export interface Invoice {
   invoice_number: string;
   client_id?: string;
   client_name?: string;
-  client?: string;
+  client?: { id: string; client_name: string };
   amount: string;
   date: string;
   dueDate?: string;
@@ -32,44 +32,58 @@ export interface DiscountInfo {
 export interface ServiceLine {
   id: string;
   description: string;
-  quantity: number;
+  quantity: number; 
   unit_price: number;
   tax_rate?: number;
   total: number;
+  // Additional fields that are used in components
+  tva?: string;
+  discount?: DiscountInfo;
+  unitPrice?: string; // For backward compatibility
+  totalPrice?: number;
 }
 
 export interface InvoiceData {
   id?: string;
   invoiceNumber: string;
-  date: string;
-  dueDate: string;
+  date?: string;
+  invoiceDate?: string; // Added to match usage
+  issueDate?: string;
+  dueDate?: string;
   clientId?: string;
   clientName: string;
   clientEmail?: string;
   clientAddress?: string;
+  clientPhone?: string;
   items: ServiceLine[];
   subtotal: number;
   taxRate: number;
   taxAmount: number;
   discount?: DiscountInfo;
   total: number;
+  totalAmount?: number;
   notes?: string;
   terms?: string;
   status?: Status;
   paymentMethod?: string;
   paymentDetails?: PaymentMethodDetails;
+  paymentDelay?: string;
+  paymentMethods?: PaymentMethodDetails[];
+  templateId?: string;
+  paymentTermsId?: string;
+  customPaymentTerms?: string;
+  introText?: string;
+  conclusionText?: string;
+  footerText?: string;
+  signature?: SignatureData;
+  signatureDate?: string;
+  issuerInfo?: CompanyProfile;
 }
 
-export interface PaymentMethod {
-  id: string;
-  name: string;
-  description?: string;
-  instructions?: string;
-  required_fields?: string[];
-}
+export type PaymentMethod = 'card' | 'transfer' | 'paypal' | 'check' | 'cash' | 'payoneer' | 'other';
 
 export interface PaymentMethodDetails {
-  method: string;
+  method?: string;
   bankName?: string;
   accountNumber?: string;
   accountName?: string;
@@ -80,6 +94,10 @@ export interface PaymentMethodDetails {
   cryptoAddress?: string;
   cryptoNetwork?: string;
   other?: Record<string, string>;
+  // Additional fields used in components
+  type?: PaymentMethod;
+  enabled?: boolean;
+  details?: string;
 }
 
 export interface CompanyProfile {
@@ -107,8 +125,11 @@ export interface PaymentTermTemplate {
   id: string;
   name: string;
   days: number;
+  delay?: string;
   description: string;
   isDefault?: boolean;
+  termsText?: string;
+  customDate?: string;
 }
 
 export interface Quote {
@@ -133,6 +154,7 @@ export interface Quote {
   items?: QuoteItem[];
   created_at?: string;
   updated_at?: string;
+  company_id?: string;
 }
 
 export interface QuoteItem {
