@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ClientSelector } from "@/components/ClientSelector";
@@ -16,7 +14,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Quote } from "@/types/quote";
+import { Quote, QuoteItem } from "@/types/invoice";
 
 interface QuoteFormValues {
   client_id: string | null;
@@ -64,9 +62,9 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       const fetchQuote = async () => {
         try {
           setIsLoading(true);
-          // Use typecasting to overcome the Supabase TypeScript error with table names
-          const { data, error } = await (supabase
-            .from('devis') as any)
+          // Use any type to bypass the TypeScript restrictions
+          const devisQuery = supabase.from('devis') as any;
+          const { data, error } = await devisQuery
             .select(`
               *,
               items:devis_items (*)
@@ -168,8 +166,8 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       const { subtotal, taxAmount, totalAmount } = calculateTotals();
       
       // Get company ID from the first company (assuming one company per user for simplicity)
-      const { data: companies, error: companiesError } = await (supabase
-        .from('companies') as any)
+      const companiesQuery = supabase.from('companies') as any;
+      const { data: companies, error: companiesError } = await companiesQuery
         .select('id')
         .limit(1);
       
@@ -180,11 +178,11 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       
       // Insert or update quote
       let quoteId: string;
+      const devisQuery = supabase.from('devis') as any;
       
       if (editQuoteId) {
         // Update existing quote
-        const { error: updateError } = await (supabase
-          .from('devis') as any)
+        const { error: updateError } = await devisQuery
           .update({
             client_id: selectedClientId,
             company_id,
@@ -203,16 +201,15 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         quoteId = editQuoteId;
         
         // Delete existing items to replace with new ones
-        const { error: deleteItemsError } = await (supabase
-          .from('devis_items') as any)
+        const devisItemsQuery = supabase.from('devis_items') as any;
+        const { error: deleteItemsError } = await devisItemsQuery
           .delete()
           .eq('quote_id', quoteId);
         
         if (deleteItemsError) throw new Error(deleteItemsError.message);
       } else {
         // Insert new quote
-        const { data: quoteData, error: insertError } = await (supabase
-          .from('devis') as any)
+        const { data: quoteData, error: insertError } = await devisQuery
           .insert({
             client_id: selectedClientId,
             company_id,
@@ -242,8 +239,8 @@ export const QuoteDialog = ({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       }));
       
       if (itemsToInsert.length > 0) {
-        const { error: itemsError } = await (supabase
-          .from('devis_items') as any)
+        const devisItemsQuery = supabase.from('devis_items') as any;
+        const { error: itemsError } = await devisItemsQuery
           .insert(itemsToInsert);
         
         if (itemsError) throw new Error(itemsError.message);

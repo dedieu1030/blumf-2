@@ -1,274 +1,274 @@
 import { useState, useEffect } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { Quote } from "@/types/quote";
-import { Edit, Eye, MoreHorizontal, FileText } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
 import { QuoteDialog } from "./QuoteDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Eye, Pencil, Trash2, Copy, Loader2 } from "lucide-react";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Quote } from "@/types/invoice";
 
 interface QuoteListProps {
   limit?: number;
-  showActions?: boolean;
   onRefresh?: () => void;
 }
 
-export const QuoteList = ({ limit, showActions = true, onRefresh }: QuoteListProps) => {
+export function QuoteList({ limit, onRefresh }: QuoteListProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editQuoteId, setEditQuoteId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editQuoteId, setEditQuoteId] = useState<string | undefined>(undefined);
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const fetchQuotes = async () => {
     try {
-      setLoading(true);
-      let query = supabase
-        .from("devis")
+      setIsLoading(true);
+      // Use any type to bypass TypeScript restrictions
+      const devisQuery = supabase.from('devis') as any;
+      const { data, error } = await devisQuery
         .select(`
           *,
-          client:client_id (id, client_name, email),
-          company:company_id (id, company_name)
+          client:clients (id, client_name)
         `)
-        .order("created_at", { ascending: false });
-
-      if (limit) {
-        query = query.limit(limit);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      setQuotes(data as Quote[]);
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setQuotes(data || []);
     } catch (error) {
-      console.error("Error fetching quotes:", error);
+      console.error('Error fetching quotes:', error);
       toast.error("Erreur lors du chargement des devis");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchQuotes();
-  }, [limit]);
+  }, []);
 
-  const handleEditClick = (id: string) => {
-    setEditQuoteId(id);
+  const handleEdit = (quote: Quote) => {
+    setEditQuoteId(quote.id);
     setDialogOpen(true);
   };
 
-  const handleViewClick = (id: string) => {
-    navigate(`/quote/${id}`);
+  const handleDelete = async (quote: Quote) => {
+    try {
+      // Use any type to bypass TypeScript restrictions
+      const devisQuery = supabase.from('devis') as any;
+      const { error } = await devisQuery
+        .delete()
+        .eq('id', quote.id);
+      
+      if (error) throw error;
+      
+      toast.success("Devis supprimé avec succès");
+      fetchQuotes();
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      toast.error("Erreur lors de la suppression du devis");
+    } finally {
+      setDeleteDialogOpen(false);
+      setSelectedQuote(null);
+    }
+  };
+
+  const confirmDelete = (quote: Quote) => {
+    setSelectedQuote(quote);
+    setDeleteDialogOpen(true);
   };
 
   const handleDialogClose = () => {
-    setEditQuoteId(null);
     setDialogOpen(false);
-  };
-
-  const handleQuoteSuccess = () => {
+    setEditQuoteId(undefined);
     fetchQuotes();
     if (onRefresh) onRefresh();
   };
 
-  const handleConvertToInvoice = async (quoteId: string) => {
+  const duplicateQuote = async (quote: Quote) => {
     try {
-      // Récupérer les détails du devis
-      const { data: quote, error: quoteError } = await supabase
-        .from("devis")
-        .select(`
-          *,
-          client:client_id (*),
-          company:company_id (*),
-          items:devis_items (*)
-        `)
-        .eq("id", quoteId)
-        .single();
-
-      if (quoteError) throw quoteError;
-
-      // Créer une nouvelle facture basée sur le devis
-      const invoiceNumber = `INV-${new Date().toISOString().slice(0, 7).replace('-', '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      // Duplicate the quote but generate a new quote number
+      const newQuoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
       
-      const { data: invoice, error: invoiceError } = await supabase
-        .from("invoices")
+      // Create a new quote with most of the same data
+      const devisQuery = supabase.from('devis') as any;
+      const { data, error } = await devisQuery
         .insert({
-          invoice_number: invoiceNumber,
           client_id: quote.client_id,
           company_id: quote.company_id,
+          quote_number: newQuoteNumber,
+          issue_date: new Date().toISOString().split('T')[0],
+          validity_date: quote.validity_date,
+          execution_date: quote.execution_date,
           subtotal: quote.subtotal,
           tax_amount: quote.tax_amount,
           total_amount: quote.total_amount,
           notes: quote.notes,
           customizations: quote.customizations,
-          status: "draft",
-          issue_date: new Date().toISOString().split("T")[0],
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          status: 'draft'
         })
-        .select()
+        .select('id')
         .single();
-
-      if (invoiceError) throw invoiceError;
-
-      // Copier les articles du devis vers la facture
-      const invoiceItems = quote.items.map(item => ({
-        invoice_id: invoice.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.total_price,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from("invoice_items")
-        .insert(invoiceItems);
-
-      if (itemsError) throw itemsError;
-
-      // Mettre à jour le statut du devis
-      const { error: updateError } = await supabase
-        .from("devis")
-        .update({ status: "invoiced" })
-        .eq("id", quoteId);
-
-      if (updateError) throw updateError;
-
-      toast.success("Le devis a été converti en facture avec succès");
+      
+      if (error) throw error;
+      
+      // Now duplicate the items
+      if (quote.items && quote.items.length > 0) {
+        const devisItemsQuery = supabase.from('devis_items') as any;
+        const newItems = quote.items.map(item => ({
+          quote_id: data.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price
+        }));
+        
+        const { error: itemsError } = await devisItemsQuery
+          .insert(newItems);
+        
+        if (itemsError) throw itemsError;
+      }
+      
+      toast.success("Devis dupliqué avec succès");
       fetchQuotes();
-      if (onRefresh) onRefresh();
     } catch (error) {
-      console.error("Error converting quote to invoice:", error);
-      toast.error("Erreur lors de la conversion du devis en facture");
+      console.error('Error duplicating quote:', error);
+      toast.error("Erreur lors de la duplication du devis");
     }
   };
 
-  const getStatusBadgeStyles = (status: string) => {
+  const viewQuote = (id: string) => {
+    navigate(`/quotes/${id}`);
+  };
+  
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "draft":
-        return "bg-gray-200 text-gray-800";
+        return <Badge variant="outline">Brouillon</Badge>;
       case "sent":
-        return "bg-blue-200 text-blue-800";
-      case "viewed":
-        return "bg-purple-200 text-purple-800";
-      case "signed":
-        return "bg-green-200 text-green-800";
-      case "rejected":
-        return "bg-red-200 text-red-800";
-      case "expired":
-        return "bg-amber-200 text-amber-800";
+        return <Badge variant="secondary">Envoyé</Badge>;
       case "accepted":
-        return "bg-emerald-200 text-emerald-800";
-      case "invoiced":
-        return "bg-teal-200 text-teal-800";
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Accepté</Badge>;
+      case "rejected":
+        return <Badge variant="destructive">Refusé</Badge>;
+      case "expired":
+        return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">Expiré</Badge>;
       default:
-        return "bg-gray-200 text-gray-800";
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   return (
     <>
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numéro</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Montant</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Statut</TableHead>
-                {showActions && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: limit || 5 }).map((_, index) => (
-                  <TableRow key={index}>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    {showActions && (
-                      <TableCell><Skeleton className="h-9 w-20 ml-auto" /></TableCell>
-                    )}
-                  </TableRow>
-                ))
-              ) : quotes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={showActions ? 6 : 5} className="text-center py-8 text-gray-500">
-                    Aucun devis trouvé
-                  </TableCell>
-                </TableRow>
-              ) : (
-                quotes.map((quote) => (
-                  <TableRow key={quote.id}>
-                    <TableCell>{quote.quote_number}</TableCell>
-                    <TableCell>{quote.client?.client_name || "N/A"}</TableCell>
-                    <TableCell>{quote.total_amount.toFixed(2)} €</TableCell>
-                    <TableCell>{format(new Date(quote.issue_date), "dd/MM/yyyy")}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={`${getStatusBadgeStyles(quote.status)} capitalize`}
-                      >
-                        {quote.status}
-                      </Badge>
-                    </TableCell>
-                    {showActions && (
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewClick(quote.id)}>
-                              <Eye className="h-4 w-4 mr-2" /> Voir
-                            </DropdownMenuItem>
-                            {quote.status !== "invoiced" && (
-                              <DropdownMenuItem onClick={() => handleEditClick(quote.id)}>
-                                <Edit className="h-4 w-4 mr-2" /> Modifier
-                              </DropdownMenuItem>
-                            )}
-                            {(quote.status === "signed" || quote.status === "accepted") && (
-                              <DropdownMenuItem onClick={() => handleConvertToInvoice(quote.id)}>
-                                <FileText className="h-4 w-4 mr-2" /> Convertir en facture
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+      {isLoading ? (
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
-      </Card>
-      <QuoteDialog 
-        open={dialogOpen} 
-        onOpenChange={handleDialogClose} 
-        editQuoteId={editQuoteId || undefined} 
-        onSuccess={handleQuoteSuccess}
+      ) : (
+        <div className="container mx-auto py-8">
+          {quotes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Aucun devis trouvé.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Numéro</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Date d'émission</TableHead>
+                  <TableHead>Montant total</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {quotes.map((quote) => (
+                  <TableRow key={quote.id}>
+                    <TableCell className="font-medium">{quote.quote_number}</TableCell>
+                    <TableCell>{quote.client?.client_name}</TableCell>
+                    <TableCell>{format(new Date(quote.issue_date), "P", { locale: fr })}</TableCell>
+                    <TableCell>{quote.total_amount} €</TableCell>
+                    <TableCell>{getStatusBadge(quote.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => viewQuote(quote.id)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(quote)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => duplicateQuote(quote)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Êtes-vous sûr(e) ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action supprimera le devis définitivement.
+                                Voulez-vous continuer ?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => confirmDelete(quote)}>Supprimer</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      )}
+
+      <QuoteDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editQuoteId={editQuoteId}
+        onSuccess={handleDialogClose}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmation de suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce devis ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedQuote(null)}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleDelete(selectedQuote!)}>Supprimer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
-};
+}
