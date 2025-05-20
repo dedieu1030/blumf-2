@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { QuoteDialog } from "./QuoteDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,9 +41,9 @@ export function QuoteList({ limit, onRefresh }: QuoteListProps) {
   const fetchQuotes = async () => {
     try {
       setIsLoading(true);
-      // Use any type to bypass TypeScript restrictions
-      const devisQuery = supabase.from('devis') as any;
-      const { data, error } = await devisQuery
+      
+      // Use type casting to bypass TypeScript restrictions
+      const { data, error } = await (supabase as any).from('devis')
         .select(`
           *,
           client:clients (id, client_name)
@@ -71,9 +72,8 @@ export function QuoteList({ limit, onRefresh }: QuoteListProps) {
 
   const handleDelete = async (quote: Quote) => {
     try {
-      // Use any type to bypass TypeScript restrictions
-      const devisQuery = supabase.from('devis') as any;
-      const { error } = await devisQuery
+      // Use type casting to bypass TypeScript restrictions
+      const { error } = await (supabase as any).from('devis')
         .delete()
         .eq('id', quote.id);
       
@@ -108,8 +108,7 @@ export function QuoteList({ limit, onRefresh }: QuoteListProps) {
       const newQuoteNumber = `Q-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
       
       // Create a new quote with most of the same data
-      const devisQuery = supabase.from('devis') as any;
-      const { data, error } = await devisQuery
+      const { data, error } = await (supabase as any).from('devis')
         .insert({
           client_id: quote.client_id,
           company_id: quote.company_id,
@@ -131,7 +130,6 @@ export function QuoteList({ limit, onRefresh }: QuoteListProps) {
       
       // Now duplicate the items
       if (quote.items && quote.items.length > 0) {
-        const devisItemsQuery = supabase.from('devis_items') as any;
         const newItems = quote.items.map(item => ({
           quote_id: data.id,
           description: item.description,
@@ -140,7 +138,7 @@ export function QuoteList({ limit, onRefresh }: QuoteListProps) {
           total_price: item.total_price
         }));
         
-        const { error: itemsError } = await devisItemsQuery
+        const { error: itemsError } = await (supabase as any).from('devis_items')
           .insert(newItems);
         
         if (itemsError) throw itemsError;
@@ -265,7 +263,7 @@ export function QuoteList({ limit, onRefresh }: QuoteListProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedQuote(null)}>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleDelete(selectedQuote!)}>Supprimer</AlertDialogAction>
+            <AlertDialogAction onClick={() => selectedQuote && handleDelete(selectedQuote)}>Supprimer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

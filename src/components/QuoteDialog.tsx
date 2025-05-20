@@ -21,7 +21,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createQuote, updateQuote, updateQuoteItems, fetchQuoteById, generateQuoteNumber } from '@/services/quoteService';
 import { supabase } from "@/integrations/supabase/client";
-import { Quote, QuoteItem } from "@/types/quote";
+import { QuoteItem } from "@/types/invoice";
 
 interface QuoteDialogProps {
   open: boolean;
@@ -64,10 +64,14 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
           
           // Set items if available
           if (quote.items && quote.items.length > 0) {
-            // Make sure to include quote_id for each item
             setQuoteItems(quote.items.map(item => ({
-              ...item,
-              quote_id: editQuoteId
+              id: item.id,
+              quote_id: editQuoteId,
+              description: item.description,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.total_price,
+              created_at: item.created_at || new Date().toISOString()
             })));
           }
           
@@ -76,9 +80,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         })
         .catch(error => {
           console.error("Error fetching quote:", error);
-          toast({
-            description: "Impossible de charger les données du devis"
-          });
+          toast("Impossible de charger les données du devis");
         })
         .finally(() => {
           setIsLoading(false);
@@ -139,9 +141,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
     e.preventDefault();
     
     if (!clientId) {
-      toast({
-        description: "Veuillez sélectionner un client"
-      });
+      toast("Veuillez sélectionner un client");
       return;
     }
     
@@ -173,17 +173,19 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         savedQuote = await createQuote(quoteData, quoteItems);
       }
       
-      toast({
-        description: `Le devis ${quoteNumber} a été ${editQuoteId ? 'mis à jour' : 'créé'} avec succès.`
-      });
+      toast(
+        editQuoteId ? "Devis mis à jour" : "Devis créé",
+        `Le devis ${quoteNumber} a été ${editQuoteId ? 'mis à jour' : 'créé'} avec succès.`
+      );
       
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving quote:", error);
-      toast({
-        description: `Une erreur s'est produite lors de ${editQuoteId ? 'la mise à jour' : 'la création'} du devis.`
-      });
+      toast(
+        "Erreur",
+        `Une erreur s'est produite lors de ${editQuoteId ? 'la mise à jour' : 'la création'} du devis.`
+      );
     } finally {
       setIsSubmitting(false);
     }

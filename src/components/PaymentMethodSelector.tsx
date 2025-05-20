@@ -1,15 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { PaymentMethodDetails, CompanyProfile } from "@/types/invoice";
-import { CreditCard, Banknote, Wallet, CreditCard as CheckIcon, DollarSign, PiggyBank } from 'lucide-react';
-
-type PaymentMethod = 'card' | 'transfer' | 'paypal' | 'check' | 'cash' | 'payoneer' | 'other';
+import { CreditCard, Banknote, Wallet, CreditCard as CheckIcon, DollarSign } from 'lucide-react';
 
 interface PaymentMethodSelectorProps {
   selectedMethods: PaymentMethodDetails[];
@@ -26,13 +22,13 @@ export function PaymentMethodSelector({
   
   // Translate payment method type to display name
   const methodLabels: Record<string, string> = {
-    card: 'Carte bancaire',
-    transfer: 'Virement bancaire',
-    paypal: 'PayPal',
-    check: 'Chèque',
-    cash: 'Espèces',
-    payoneer: 'Payoneer', 
-    other: 'Autre'
+    'card': 'Carte bancaire',
+    'transfer': 'Virement bancaire',
+    'paypal': 'PayPal',
+    'check': 'Chèque',
+    'cash': 'Espèces',
+    'payoneer': 'Payoneer', 
+    'other': 'Autre'
   };
 
   useEffect(() => {
@@ -43,27 +39,27 @@ export function PaymentMethodSelector({
       // Initialize with default empty methods
       const defaultMethods: PaymentMethodDetails[] = [
         { 
-          type: 'card' as PaymentMethod, 
+          type: 'card', 
           enabled: false,
           details: 'Paiement sécurisé par carte bancaire'
         },
         { 
-          type: 'transfer' as PaymentMethod, 
+          type: 'transfer', 
           enabled: false,
           details: companyProfile ? `Virement sur le compte ${companyProfile.bankAccount}` : 'Virement bancaire'
         },
         { 
-          type: 'paypal' as PaymentMethod, 
+          type: 'paypal', 
           enabled: false,
           details: companyProfile?.paypal || 'Paiement via PayPal'
         },
         { 
-          type: 'check' as PaymentMethod, 
+          type: 'check', 
           enabled: false,
           details: `Chèque à l'ordre de ${companyProfile?.accountHolder || '[Nom du bénéficiaire]'}`
         },
         { 
-          type: 'cash' as PaymentMethod, 
+          type: 'cash', 
           enabled: false,
           details: 'Paiement en espèces'
         }
@@ -86,16 +82,16 @@ export function PaymentMethodSelector({
     onMethodsChange(updatedMethods.filter(m => m.enabled));
   };
 
-  const renderCardMethod = (method: PaymentMethodDetails, index: number) => {
+  const renderMethodCard = (method: PaymentMethodDetails, index: number, Icon: React.ComponentType<any>, methodKey: string) => {
     return (
-      <div key="card" className="p-4 border rounded-lg">
+      <div key={methodKey} className="p-4 border rounded-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <CreditCard className="h-5 w-5 text-primary" />
-            <Label htmlFor={`method-card`}>{methodLabels['card']}</Label>
+            <Icon className="h-5 w-5 text-primary" />
+            <Label htmlFor={`method-${methodKey}`}>{methodLabels[methodKey]}</Label>
           </div>
           <Switch
-            id={`method-card`}
+            id={`method-${methodKey}`}
             checked={method.enabled}
             onCheckedChange={(checked) => handleMethodToggle(index, checked)}
           />
@@ -104,122 +100,7 @@ export function PaymentMethodSelector({
         {method.enabled && (
           <div className="mt-2">
             <Textarea
-              placeholder="Instructions pour le paiement par carte"
-              value={method.details || ''}
-              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
-              className="h-20"
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderBankTransferMethod = (method: PaymentMethodDetails, index: number) => {
-    return (
-      <div key="transfer" className="p-4 border rounded-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Banknote className="h-5 w-5 text-primary" />
-            <Label htmlFor={`method-transfer`}>{methodLabels['transfer']}</Label>
-          </div>
-          <Switch
-            id={`method-transfer`}
-            checked={method.enabled}
-            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
-          />
-        </div>
-        
-        {method.enabled && (
-          <div className="mt-2">
-            <Textarea
-              placeholder="Informations bancaires pour le virement"
-              value={method.details || ''}
-              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
-              className="h-20"
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderPaypalMethod = (method: PaymentMethodDetails, index: number) => {
-    return (
-      <div key="paypal" className="p-4 border rounded-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Wallet className="h-5 w-5 text-primary" />
-            <Label htmlFor={`method-paypal`}>{methodLabels['paypal']}</Label>
-          </div>
-          <Switch
-            id={`method-paypal`}
-            checked={method.enabled}
-            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
-          />
-        </div>
-        
-        {method.enabled && (
-          <div className="mt-2">
-            <Input
-              placeholder="Adresse email PayPal"
-              value={method.details || ''}
-              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderCheckMethod = (method: PaymentMethodDetails, index: number) => {
-    return (
-      <div key="check" className="p-4 border rounded-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <CheckIcon className="h-5 w-5 text-primary" />
-            <Label htmlFor={`method-check`}>{methodLabels['check']}</Label>
-          </div>
-          <Switch
-            id={`method-check`}
-            checked={method.enabled}
-            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
-          />
-        </div>
-        
-        {method.enabled && (
-          <div className="mt-2">
-            <Textarea
-              placeholder="Instructions pour le paiement par chèque"
-              value={method.details || ''}
-              onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
-              className="h-20"
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderCashMethod = (method: PaymentMethodDetails, index: number) => {
-    return (
-      <div key="cash" className="p-4 border rounded-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <DollarSign className="h-5 w-5 text-primary" />
-            <Label htmlFor={`method-cash`}>{methodLabels['cash']}</Label>
-          </div>
-          <Switch
-            id={`method-cash`}
-            checked={method.enabled}
-            onCheckedChange={(checked) => handleMethodToggle(index, checked)}
-          />
-        </div>
-        
-        {method.enabled && (
-          <div className="mt-2">
-            <Textarea
-              placeholder="Instructions pour le paiement en espèces"
+              placeholder={`Instructions pour le paiement par ${methodLabels[methodKey].toLowerCase()}`}
               value={method.details || ''}
               onChange={(e) => handleMethodDetailsChange(index, e.target.value)}
               className="h-20"
@@ -234,19 +115,19 @@ export function PaymentMethodSelector({
     <div className="space-y-4">
       {methods.map((method, index) => {
         if (method.type === 'card') {
-          return renderCardMethod(method, index);
+          return renderMethodCard(method, index, CreditCard, 'card');
         }
         if (method.type === 'transfer') {
-          return renderBankTransferMethod(method, index);
+          return renderMethodCard(method, index, Banknote, 'transfer');
         }
         if (method.type === 'paypal') {
-          return renderPaypalMethod(method, index);
+          return renderMethodCard(method, index, Wallet, 'paypal');
         }
         if (method.type === 'check') {
-          return renderCheckMethod(method, index);
+          return renderMethodCard(method, index, CheckIcon, 'check');
         }
         if (method.type === 'cash') {
-          return renderCashMethod(method, index);
+          return renderMethodCard(method, index, DollarSign, 'cash');
         }
         return null;
       })}

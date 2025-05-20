@@ -5,7 +5,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { CalendarIcon } from "@radix-ui/react-icons";
+import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DateRange } from "react-day-picker";
 import { addDays } from "date-fns";
@@ -32,7 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { InputCurrency } from "./ui/input-currency";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { PaymentTermsSelector } from "./PaymentTermsSelector";
-import { savePaymentTermTemplate, getPaymentTermsTemplates } from "@/services/paymentTermsService";
+import { getPaymentTermsTemplates } from "@/services/paymentTermsService";
 
 interface InvoiceDialogProps {
   open: boolean;
@@ -264,6 +263,10 @@ export function InvoiceDialog({
     setCustomPaymentTerms(template.termsText || '');
   };
 
+  const handleDiscountTypeChange = (value: string) => {
+    setDiscountType(value as 'percentage' | 'fixed');
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
@@ -420,7 +423,7 @@ export function InvoiceDialog({
             </div>
             <div>
               <Label htmlFor="discountType">Discount Type</Label>
-              <Select value={discountType} onValueChange={setDiscountType} disabled={isLoading}>
+              <Select value={discountType} onValueChange={handleDiscountTypeChange} disabled={isLoading}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select discount type" />
                 </SelectTrigger>

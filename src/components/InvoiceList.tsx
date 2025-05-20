@@ -45,9 +45,10 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
   const fetchInvoices = async () => {
     try {
       setIsLoading(true);
-      // Use type casting to bypass TypeScript restrictions
-      const invoicesQuery = supabase.from('invoices') as any;
-      const { data, error } = await invoicesQuery
+      
+      // Using any type to bypass TypeScript restrictions since we know the table exists
+      // but TypeScript doesn't know about the invoices table
+      const { data, error } = await (supabase as any).from('invoices')
         .select(`
           *,
           client:clients (id, client_name)
@@ -93,9 +94,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
 
   const handleDelete = async (invoice: Invoice) => {
     try {
-      // Use type casting to bypass TypeScript restrictions
-      const invoicesQuery = supabase.from('invoices') as any;
-      const { error } = await invoicesQuery
+      const { error } = await (supabase as any).from('invoices')
         .delete()
         .eq('id', invoice.id);
       
@@ -151,7 +150,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
 
   const handleStatusChange = async (invoice: Invoice, newStatus: Status) => {
     try {
-      const { error } = await (supabase.from('invoices') as any)
+      const { error } = await (supabase as any).from('invoices')
         .update({ status: newStatus })
         .eq('id', invoice.id);
       
@@ -200,10 +199,10 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
           {invoices.map((invoice) => (
             <InvoiceMobileCard 
               key={invoice.id} 
-              invoice={invoice as any} 
-              onView={() => handleViewInvoice(invoice)}
-              onEdit={() => handleEditInvoice(invoice)}
-              onDelete={() => confirmDelete(invoice)}
+              invoice={invoice}
+              onViewClick={() => handleViewInvoice(invoice)}
+              onEditClick={() => handleEditInvoice(invoice)}
+              onDeleteClick={() => confirmDelete(invoice)}
               onStatusChange={(newStatus) => handleStatusChange(invoice, newStatus as Status)}
             />
           ))}
@@ -240,7 +239,7 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
                   </TableCell>
                   <TableCell>{invoice.amount} €</TableCell>
                   <TableCell>
-                    <InvoiceStatus status={invoice.status as Status} />
+                    <InvoiceStatus status={invoice.status} />
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -275,7 +274,15 @@ export function InvoiceList({ onRefresh, filterStatus, clientId, limit }: Invoic
         <InvoiceDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
-          invoice={selectedInvoice}
+          invoice={{
+            invoiceNumber: selectedInvoice.invoice_number,
+            clientName: selectedInvoice.client?.client_name || '',
+            items: [],
+            subtotal: 0,
+            taxRate: 0,
+            taxAmount: 0,
+            total: parseFloat(selectedInvoice.amount)
+          }}
           onSuccess={handleDialogSuccess}
         />
       )}

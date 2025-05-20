@@ -9,7 +9,7 @@ export type Status = "draft" | "pending" | "paid" | "overdue" | "cancelled";
 
 export interface Invoice {
   id: string;
-  number: string;
+  number?: string;
   invoice_number: string;
   client_id?: string;
   client_name?: string;
@@ -20,7 +20,7 @@ export interface Invoice {
   status: Status;
   paymentUrl?: string;
   total_amount?: number;
-  company_id?: string; // Added company_id property
+  company_id?: string;
 }
 
 export interface DiscountInfo {
@@ -37,10 +37,8 @@ export interface ServiceLine {
   unit_price: number;
   tax_rate?: number;
   total: number;
-  // Additional fields that are used in components
-  tva?: string;
   discount?: DiscountInfo;
-  unitPrice?: string; // For backward compatibility
+  tva?: string;
   totalPrice?: number;
 }
 
@@ -48,7 +46,7 @@ export interface InvoiceData {
   id?: string;
   invoiceNumber: string;
   date?: string;
-  invoiceDate?: string; // Added to match usage
+  invoiceDate?: string;
   issueDate?: string;
   dueDate?: string;
   clientId?: string;
@@ -79,7 +77,7 @@ export interface InvoiceData {
   signature?: SignatureData;
   signatureDate?: string;
   issuerInfo?: CompanyProfile;
-  serviceLines?: ServiceLine[]; // Added for backward compatibility
+  serviceLines?: ServiceLine[];
 }
 
 export type PaymentMethod = 'card' | 'transfer' | 'paypal' | 'check' | 'cash' | 'payoneer' | 'other';
@@ -96,7 +94,6 @@ export interface PaymentMethodDetails {
   cryptoAddress?: string;
   cryptoNetwork?: string;
   other?: Record<string, string>;
-  // Additional fields used in components
   type?: PaymentMethod;
   enabled?: boolean;
   details?: string;
@@ -166,4 +163,5 @@ export interface QuoteItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  created_at?: string;
 }
