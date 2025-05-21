@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -17,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ClientCategorySelector } from "@/components/ClientCategorySelector";
 import { ClientNotes } from "@/components/ClientNotes";
 import { formatCurrency } from "@/lib/utils";
+import { safeGetClientById, safeDeleteClient } from "@/utils/clientUtils";
 
 type ClientDetailsParams = {
   id: string;
@@ -51,56 +51,33 @@ export default function ClientDetails() {
   const [activeTab, setActiveTab] = useState("details");
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   // Fetch client data
   useEffect(() => {
-    const fetchClientData = async () => {
+    const fetchClient = async () => {
       if (!id) return;
-      
       setIsLoading(true);
+      
       try {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', id)
-          .single();
+        const { data, error } = await safeGetClientById(id);
         
-        if (error) throw error;
-        
-        if (data) {
-          // Ensure the client object has a name property matching client_name
-          const clientWithName = {
-            ...data,
-            name: data.client_name,
-            created_at: data.created_at || new Date().toISOString(),
-            updated_at: data.updated_at || new Date().toISOString()
-          } as Client;
-          
-          setClient(clientWithName);
-          
-          try {
-            // Fetch client categories using a function that properly handles this operation
-            const { data: categoryData } = await supabase
-              .rpc('get_client_categories', { p_client_id: id });
-            
-            setClientCategories(categoryData || []);
-          } catch (categoryError) {
-            console.error("Error fetching client categories:", categoryError);
-          }
+        if (error || !data) {
+          toast.error("Erreur lors du chargement des données du client");
+          return;
         }
+        
+        setClient(data);
       } catch (error) {
         console.error("Error fetching client:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de récupérer les informations du client",
-          variant: "destructive"
-        });
+        toast.error("Erreur lors du chargement des données du client");
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchClientData();
+    fetchClient();
   }, [id, toast]);
   
   // Fetch client invoices
@@ -231,6 +208,31 @@ export default function ClientDetails() {
       </div>
     );
   }
+  
+  // Delete client function
+  const handleDeleteClient = async () => {
+    if (!client) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const { error } = await safeDeleteClient(client.id);
+      
+      if (error) {
+        toast.error("Erreur lors de la suppression du client");
+        return;
+      }
+      
+      toast.success("Client supprimé avec succès");
+      navigate("/clients");
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      toast.error("Erreur lors de la suppression du client");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
   
   return (
     <>
@@ -455,6 +457,24 @@ export default function ClientDetails() {
         isOpen={isMobileMenuOpen}
         onOpenChange={setIsMobileMenuOpen}
       />
+      
+      {/* Delete client dialog */}
+      {deleteDialogOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-lg font-semibold mb-4">Supprimer le client</h2>
+            <p className="text-sm text-gray-600 mb-4">Êtes-vous sûr de vouloir supprimer ce client ?</p>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteClient}>
+                Supprimer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

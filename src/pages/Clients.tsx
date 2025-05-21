@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ import {
 import { Header } from "@/components/Header";
 import MobileNavigation from "@/components/MobileNavigation";
 import { Client } from "@/types/user";
+import { safeDeleteClient } from "@/utils/clientUtils";
 
 const Clients = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -35,6 +35,7 @@ const Clients = () => {
   const [updateLoading, setUpdateLoading] = useState(false);
   const [isClientSelectorOpen, setIsClientSelectorOpen] = useState(false);
   const [isNewClientFormOpen, setIsNewClientFormOpen] = useState(false);
+  const [deletingClientId, setDeletingClientId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchClients();
@@ -81,9 +82,27 @@ const Clients = () => {
     }
   };
 
-  const handleDeleteClient = (client: Client) => {
-    setSelectedClient(client);
-    setDeleteDialogOpen(true);
+  const handleDeleteClient = async (id: string) => {
+    setDeletingClientId(id);
+    
+    try {
+      const { error } = await safeDeleteClient(id);
+      
+      if (error) {
+        toast.error("Erreur lors de la suppression du client");
+        return;
+      }
+      
+      // Remove the client from the local state
+      setClients(prev => prev.filter(client => client.id !== id));
+      toast.success("Client supprimé avec succès");
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      toast.error("Erreur lors de la suppression du client");
+    } finally {
+      setDeletingClientId(null);
+      setDeleteDialogOpen(false);
+    }
   };
 
   const confirmDeleteClient = async () => {
@@ -253,7 +272,7 @@ const Clients = () => {
                             Modifier
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDeleteClient(client)}
+                            onClick={() => handleDeleteClient(client.id)}
                             className="text-red-600"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />

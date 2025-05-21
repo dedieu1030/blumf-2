@@ -27,12 +27,9 @@ export function InvoiceReminder({ invoiceId, onSuccess }: InvoiceReminderProps) 
           onSuccess();
         }
       } else {
-        // Use a type guard to check if error property exists
-        if ('error' in result) {
-          toast.error(`Erreur lors de l'envoi du rappel: ${result.error}`);
-        } else {
-          toast.error("Une erreur est survenue lors de l'envoi du rappel");
-        }
+        // Use type-safe approach to check if error property exists
+        const errorMessage = 'error' in result ? result.error : "Une erreur est survenue";
+        toast.error(`Erreur lors de l'envoi du rappel: ${errorMessage}`);
       }
       setIsOpen(false);
     } catch (error) {
@@ -74,3 +71,5 @@ export function InvoiceReminder({ invoiceId, onSuccess }: InvoiceReminderProps) 
     </>
   );
 }
+
+export default InvoiceReminder;

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "./ui/button";
 import { Download, Send, Eye, Save, Loader2, CreditCard, ExternalLink, CheckCircle } from "lucide-react";
@@ -265,8 +264,7 @@ export function InvoiceActions({
             {/* Ajout du bouton de rappel */}
             <InvoiceReminder 
               invoiceId={invoiceData.invoiceNumber}
-              stripeInvoiceId={stripeInvoiceId}
-              clientEmail={clientEmail}
+              onSuccess={onStatusChange}
             />
             
             {!paymentUrl ? (

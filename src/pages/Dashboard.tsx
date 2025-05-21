@@ -46,7 +46,7 @@ const Dashboard = () => {
     };
 
     fetchRecentInvoices();
-  }, [supabase]);
+  }, []);
 
   // Load overdue invoices
   useEffect(() => {
@@ -73,7 +73,7 @@ const Dashboard = () => {
     };
 
     fetchOverdueInvoices();
-  }, [supabase]);
+  }, []);
 
   return (
     <>

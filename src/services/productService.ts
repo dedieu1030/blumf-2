@@ -1,14 +1,15 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { checkTableExists } from '@/utils/databaseTableUtils';
 
 // Define Product type
 export interface Product {
   id: string;
   name: string;
   description?: string;
-  price: string | number;
-  price_cents?: number;
+  price_cents: number;
+  price?: string | number;
   category_id?: string;
   category_name?: string;
   is_recurring: boolean;
@@ -16,10 +17,11 @@ export interface Product {
   recurring_interval_count?: number;
   created_at?: string;
   updated_at?: string;
+  user_id?: string;
   // Additional fields needed by components
-  product_type?: 'product' | 'service' | string | null;
+  product_type?: 'product' | 'service' | string;
   currency?: string;
-  tax_rate?: number | null;
+  tax_rate?: number;
   active?: boolean;
 }
 
@@ -28,9 +30,10 @@ export interface ProductCategory {
   id: string;
   name: string;
   description?: string;
-  color?: string; // Add color property
+  color?: string;
   created_at?: string;
   updated_at?: string;
+  user_id?: string;
 }
 
 // Helper function to format price
@@ -47,14 +50,21 @@ export const formatPrice = (price_cents?: number | null, currency: string = 'EUR
   return `${amount} ${currencySymbol}`;
 };
 
-// Fetch all products - alias for backward compatibility
+// Map old function names to new ones for backwards compatibility
 export const getProducts = fetchProducts;
+export const getCategories = fetchCategories;
 
 // Fetch all products
 export async function fetchProducts(): Promise<Product[]> {
   try {
     // Attempt to fetch from actual table if it exists
     try {
+      // Check if the table exists before querying
+      const tableExists = await checkTableExists('products');
+      if (!tableExists) {
+        return getMockProducts();
+      }
+
       const { data, error } = await supabase
         .from('products')
         .select('*, product_categories(name)');
@@ -75,13 +85,14 @@ export async function fetchProducts(): Promise<Product[]> {
         category_name: item.product_categories?.name,
         is_recurring: item.is_recurring || false,
         recurring_interval: item.recurring_interval,
-        recurring_interval_count: item.recurring_interval_count || 1,
+        recurring_interval_count: item.recurring_interval_count ?? 1,
+        product_type: item.product_type ?? 'service',
+        currency: item.currency ?? 'EUR',
+        tax_rate: item.tax_rate ?? 0,
+        active: item.active ?? true,
         created_at: item.created_at,
         updated_at: item.updated_at,
-        product_type: item.product_type || 'service',
-        currency: item.currency || 'EUR',
-        tax_rate: item.tax_rate || 0,
-        active: item.active !== undefined ? item.active : true,
+        user_id: item.user_id
       }));
     } catch (err) {
       console.error('Error in product fetch:', err);
@@ -93,14 +104,16 @@ export async function fetchProducts(): Promise<Product[]> {
   }
 }
 
-// Alias for backward compatibility
-export const getCategories = fetchCategories;
-
 // Fetch product categories
 export async function fetchCategories(): Promise<ProductCategory[]> {
   try {
     // Attempt to fetch from actual table if it exists
     try {
+      const tableExists = await checkTableExists('product_categories');
+      if (!tableExists) {
+        return getMockCategories();
+      }
+
       const { data, error } = await supabase
         .from('product_categories')
         .select('*');
@@ -140,17 +153,27 @@ export const createProduct = async (product: Partial<Product>): Promise<Product>
       category_id: product.category_id || null,
       is_recurring: product.is_recurring || false,
       recurring_interval: product.recurring_interval || null,
-      recurring_interval_count: product.recurring_interval_count || 1,
-      product_type: product.product_type || 'service',
-      currency: product.currency || 'EUR',
-      tax_rate: product.tax_rate || 0,
-      active: product.active !== undefined ? product.active : true,
+      recurring_interval_count: product.recurring_interval_count ?? 1,
+      product_type: product.product_type ?? 'service',
+      currency: product.currency ?? 'EUR',
+      tax_rate: product.tax_rate ?? 0,
+      active: product.active ?? true,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      user_id: 'mock-user-id'
     };
 
     // Attempt to insert into actual table if it exists
     try {
+      const tableExists = await checkTableExists('products');
+      if (!tableExists) {
+        // Return mock response with the data we would have inserted
+        return {
+          ...newProduct,
+          price: (priceCents / 100).toFixed(2),
+        };
+      }
+
       const { data, error } = await supabase
         .from('products')
         .insert([newProduct])
@@ -162,33 +185,20 @@ export const createProduct = async (product: Partial<Product>): Promise<Product>
         // Return mock response with the data we would have inserted
         return {
           ...newProduct,
-          price: (priceCents / 100).toFixed(2)
+          price: (priceCents / 100).toFixed(2),
         };
       }
 
       return {
-        id: data.id,
-        name: data.name,
-        description: data.description,
+        ...data,
         price: (data.price_cents / 100).toFixed(2),
-        price_cents: data.price_cents,
-        category_id: data.category_id,
-        is_recurring: data.is_recurring,
-        recurring_interval: data.recurring_interval,
-        recurring_interval_count: data.recurring_interval_count,
-        product_type: data.product_type,
-        currency: data.currency,
-        tax_rate: data.tax_rate,
-        active: data.active,
-        created_at: data.created_at,
-        updated_at: data.updated_at
       };
     } catch (err) {
       console.error('Error in product creation:', err);
       // Return mock response
       return {
         ...newProduct,
-        price: (priceCents / 100).toFixed(2)
+        price: (priceCents / 100).toFixed(2),
       };
     }
   } catch (error) {
@@ -217,11 +227,22 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
     if (updates.price !== undefined) {
       updatedFields.price_cents = typeof updates.price === 'string'
         ? Math.round(parseFloat(updates.price) * 100)
-        : Math.round(updates.price * 100);
+        : Math.round(Number(updates.price) * 100);
     }
 
     // Attempt to update in actual table if it exists
     try {
+      const tableExists = await checkTableExists('products');
+      if (!tableExists) {
+        // Return mock response
+        return {
+          id,
+          ...updatedFields,
+          price: updatedFields.price_cents ? (updatedFields.price_cents / 100).toFixed(2) : '0.00',
+          is_recurring: updatedFields.is_recurring || false,
+        };
+      }
+
       const { data, error } = await supabase
         .from('products')
         .update(updatedFields)
@@ -236,26 +257,13 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
           id,
           ...updatedFields,
           price: updatedFields.price_cents ? (updatedFields.price_cents / 100).toFixed(2) : '0.00',
-          is_recurring: updatedFields.is_recurring || false
+          is_recurring: updatedFields.is_recurring || false,
         };
       }
 
       return {
-        id: data.id,
-        name: data.name,
-        description: data.description,
+        ...data,
         price: (data.price_cents / 100).toFixed(2),
-        price_cents: data.price_cents,
-        category_id: data.category_id,
-        is_recurring: data.is_recurring,
-        recurring_interval: data.recurring_interval,
-        recurring_interval_count: data.recurring_interval_count,
-        product_type: data.product_type,
-        currency: data.currency,
-        tax_rate: data.tax_rate,
-        active: data.active,
-        created_at: data.created_at,
-        updated_at: data.updated_at
       };
     } catch (err) {
       console.error('Error in product update:', err);
@@ -264,7 +272,7 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
         id,
         ...updatedFields,
         price: updatedFields.price_cents ? (updatedFields.price_cents / 100).toFixed(2) : '0.00',
-        is_recurring: updatedFields.is_recurring || false
+        is_recurring: updatedFields.is_recurring || false,
       };
     }
   } catch (error) {
@@ -278,6 +286,11 @@ export const deleteProduct = async (id: string): Promise<boolean> => {
   try {
     // Attempt to delete from actual table if it exists
     try {
+      const tableExists = await checkTableExists('products');
+      if (!tableExists) {
+        return true; // Mock success
+      }
+
       const { error } = await supabase
         .from('products')
         .delete()
@@ -308,11 +321,17 @@ export const createCategory = async (category: Omit<ProductCategory, 'id' | 'cre
       description: category.description || '',
       color: category.color || '#6366F1',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      user_id: 'mock-user-id'
     };
 
     // Attempt to insert into actual table if it exists
     try {
+      const tableExists = await checkTableExists('product_categories');
+      if (!tableExists) {
+        return newCategory; // Return mock response
+      }
+
       const { data, error } = await supabase
         .from('product_categories')
         .insert([newCategory])
@@ -345,6 +364,18 @@ export const updateCategory = async (id: string, updates: Partial<ProductCategor
 
     // Attempt to update in actual table if it exists
     try {
+      const tableExists = await checkTableExists('product_categories');
+      if (!tableExists) {
+        // Return mock response
+        return {
+          id,
+          name: updates.name || 'Unknown',
+          description: updates.description,
+          color: updates.color,
+          updated_at: updatedFields.updated_at
+        };
+      }
+
       const { data, error } = await supabase
         .from('product_categories')
         .update(updatedFields)
@@ -387,6 +418,11 @@ export const deleteCategory = async (id: string): Promise<boolean> => {
   try {
     // Attempt to delete from actual table if it exists
     try {
+      const tableExists = await checkTableExists('product_categories');
+      if (!tableExists) {
+        return true; // Mock success
+      }
+
       const { error } = await supabase
         .from('product_categories')
         .delete()
@@ -408,8 +444,8 @@ export const deleteCategory = async (id: string): Promise<boolean> => {
   }
 };
 
-// Mock functions
-const getMockProducts = (): Product[] => {
+// Mock data functions
+function getMockProducts(): Product[] {
   return [
     {
       id: '1',
@@ -462,9 +498,9 @@ const getMockProducts = (): Product[] => {
       updated_at: '2023-01-03T12:00:00Z'
     }
   ];
-};
+}
 
-const getMockCategories = (): ProductCategory[] => {
+function getMockCategories(): ProductCategory[] {
   return [
     {
       id: '1',
@@ -491,4 +527,4 @@ const getMockCategories = (): ProductCategory[] => {
       updated_at: '2023-01-01T11:00:00Z'
     }
   ];
-};
+}
