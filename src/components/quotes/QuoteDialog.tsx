@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -21,6 +20,8 @@ import { toast } from "sonner";
 import { ClientSelector } from "@/components/ClientSelector";
 import { Client } from "@/types/user";
 import { supabase } from "@/integrations/supabase/client";
+import { QuoteStatus } from "@/types/quote";
+import { fetchQuoteById, generateQuoteNumber } from "@/services/quoteService";
 
 export interface QuoteDialogProps {
   open: boolean;
@@ -34,7 +35,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [validityDate, setValidityDate] = useState("");
   const [executionDate, setExecutionDate] = useState("");
-  const [status, setStatus] = useState("draft");
+  const [status, setStatus] = useState<QuoteStatus>("draft");
   const [clientId, setClientId] = useState("");
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
@@ -93,46 +94,13 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       // For new quotes, generate a new quote number
       generateQuoteNumber().then(number => setQuoteNumber(number));
       setIssueDate(new Date().toISOString().split('T')[0]);
+      setStatus("draft");
     }
   }, [editQuoteId, open]);
 
   useEffect(() => {
     calculateTotals();
   }, [quoteItems]);
-
-  const fetchQuoteById = async (id: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('devis')
-        .select(`
-          *,
-          client:client_id (
-            id,
-            client_name,
-            email,
-            address,
-            phone
-          ),
-          items:devis_items (*)
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error(`Error fetching quote ${id}:`, error);
-      throw error;
-    }
-  };
-
-  const generateQuoteNumber = async (): Promise<string> => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `Q-${year}${month}-${randomDigits}`;
-  };
 
   const calculateTotals = () => {
     let newSubtotal = 0;
@@ -205,7 +173,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         issue_date: issueDate,
         validity_date: validityDate || null,
         execution_date: executionDate || null,
-        status: status,
+        status,
         subtotal,
         tax_amount: taxAmount,
         total_amount: total,
@@ -356,7 +324,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
             </div>
             <div>
               <Label htmlFor="status">Statut</Label>
-              <Select value={status} onValueChange={setStatus} disabled={isLoading}>
+              <Select value={status} onValueChange={(value) => setStatus(value as QuoteStatus)} disabled={isLoading}>
                 <SelectTrigger id="status">
                   <SelectValue placeholder="Sélectionner un statut" />
                 </SelectTrigger>

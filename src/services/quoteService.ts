@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Quote, QuoteItem } from '@/types/quote';
+import { Quote, QuoteItem, QuoteStatus } from '@/types/quote';
 
 export async function fetchQuotes(): Promise<Quote[]> {
   const { data, error } = await supabase
@@ -48,7 +48,7 @@ export async function fetchQuoteById(id: string): Promise<Quote | null> {
   return {
     ...data,
     items: items || []
-  };
+  } as Quote;
 }
 
 export async function createQuote(quote: Partial<Quote>, items: Partial<QuoteItem>[]): Promise<Quote> {
@@ -90,12 +90,11 @@ export async function createQuote(quote: Partial<Quote>, items: Partial<QuoteIte
 
     if (itemsError) {
       console.error('Error creating quote items:', itemsError);
-      // Consider rolling back the quote insert or just warning the user
       console.warn('Quote created but items failed to insert');
     }
   }
 
-  return quoteData;
+  return quoteData as Quote;
 }
 
 export async function updateQuote(id: string, quote: Partial<Quote>): Promise<Quote> {
@@ -123,7 +122,7 @@ export async function updateQuote(id: string, quote: Partial<Quote>): Promise<Qu
     throw error;
   }
 
-  return data;
+  return data as Quote;
 }
 
 export async function deleteQuote(id: string): Promise<void> {

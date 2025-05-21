@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +24,7 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { Edit, Trash2, FileText, Eye } from 'lucide-react';
 import MobileNavigation from '@/components/MobileNavigation';
+import { fetchQuotes, deleteQuote } from '@/services/quoteService';
 
 const Quotes = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -36,46 +36,14 @@ const Quotes = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchQuotes();
+    fetchAllQuotes();
   }, []);
 
-  const fetchQuotes = async () => {
+  const fetchAllQuotes = async () => {
     setLoading(true);
     try {
-      // Check if the quotes table exists before querying it
-      const { count, error: checkError } = await supabase
-        .from('devis')
-        .select('*', { count: 'exact', head: true });
-
-      if (checkError) {
-        console.error('Error checking quotes table:', checkError);
-        toast.error('Failed to check quotes table.');
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('devis')
-        .select(`
-          *,
-          client:client_id (
-            id,
-            client_name,
-            email,
-            address,
-            phone
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching quotes:', error);
-        toast.error('Failed to load quotes.');
-      }
-
-      if (data) {
-        setQuotes(data as Quote[]);
-      }
+      const data = await fetchQuotes();
+      setQuotes(data);
     } catch (error) {
       console.error('Error fetching quotes:', error);
       toast.error('Failed to load quotes.');
@@ -85,24 +53,15 @@ const Quotes = () => {
   };
 
   const handleQuoteSuccess = () => {
-    fetchQuotes();
+    fetchAllQuotes();
     setIsQuoteDialogOpen(false);
   };
 
   const handleDeleteQuote = async (quoteId: string) => {
     try {
-      const { error } = await supabase
-        .from('devis')
-        .delete()
-        .eq('id', quoteId);
-
-      if (error) {
-        console.error('Error deleting quote:', error);
-        toast.error('Failed to delete quote.');
-      } else {
-        toast.success('Quote deleted successfully.');
-        fetchQuotes();
-      }
+      await deleteQuote(quoteId);
+      toast.success('Quote deleted successfully.');
+      fetchAllQuotes();
     } catch (error) {
       console.error('Error deleting quote:', error);
       toast.error('Failed to delete quote.');
@@ -112,7 +71,7 @@ const Quotes = () => {
   const filteredQuotes = quotes.filter(quote => {
     const searchTerm = searchQuery.toLowerCase();
     return (
-      quote.quote_number.toLowerCase().includes(searchTerm) ||
+      quote.quote_number?.toLowerCase().includes(searchTerm) ||
       (quote.client?.client_name?.toLowerCase().includes(searchTerm) ?? false)
     );
   });
@@ -129,7 +88,10 @@ const Quotes = () => {
         <div className="flex flex-col space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Quotes List</h2>
-            <Button onClick={() => setIsQuoteDialogOpen(true)}>
+            <Button onClick={() => {
+              setSelectedQuoteId(null);
+              setIsQuoteDialogOpen(true);
+            }}>
               Create Quote
             </Button>
           </div>
@@ -173,11 +135,11 @@ const Quotes = () => {
                               {quote.quote_number}
                             </Link>
                           </TableCell>
-                          <TableCell>{quote.client?.client_name}</TableCell>
+                          <TableCell>{quote.client?.client_name || 'No client'}</TableCell>
                           <TableCell>
-                            {format(new Date(quote.issue_date), 'PPP', { locale: ptBR })}
+                            {quote.issue_date ? format(new Date(quote.issue_date), 'PPP', { locale: ptBR }) : 'No date'}
                           </TableCell>
-                          <TableCell>{formatCurrency(quote.total_amount, 'EUR')}</TableCell>
+                          <TableCell>{formatCurrency(quote.total_amount || 0, 'EUR')}</TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
