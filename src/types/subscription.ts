@@ -7,13 +7,15 @@ export interface Subscription {
   next_invoice_date?: string;
   recurring_interval: 'month' | 'week' | 'day' | 'quarter' | 'semester' | 'year' | 'custom';
   recurring_interval_count: number;
-  status: 'active' | 'canceled' | 'expired' | 'paused';
+  status: SubscriptionStatus;
   notes?: string;
   items: SubscriptionItem[];
   created_at: string;
   updated_at: string;
   client?: any;
 }
+
+export type SubscriptionStatus = 'active' | 'canceled' | 'expired' | 'paused';
 
 export interface SubscriptionItem {
   id: string;

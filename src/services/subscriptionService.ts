@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
-import { Subscription, SubscriptionItem } from "@/types/subscription";
+import { Subscription, SubscriptionItem, SubscriptionStatus } from "@/types/subscription";
 import { checkTableExists } from "@/utils/databaseTableUtils";
 
 // Fonction de vérification de table
@@ -263,6 +263,3 @@ export async function updateSubscription(id: string, subscriptionData: Partial<S
     return { success: false, error: 'Une erreur inattendue est survenue' };
   }
 }
-
-// Exporter les types pour compatibilité
-export { Subscription, SubscriptionItem };

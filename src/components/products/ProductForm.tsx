@@ -91,7 +91,6 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
     const productData = {
       ...formData,
       price: parseFloat(formData.price as string),
-      price_cents: formData.price_cents,
     };
   
     try {

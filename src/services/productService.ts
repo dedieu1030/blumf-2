@@ -1,367 +1,240 @@
+import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
-import { checkTableExists } from '@/utils/databaseTableUtils';
-import { supabase } from '@/integrations/supabase/client';
-import { Product } from '@/types/product';
 
-// Fetch all products
-export async function fetchProducts(): Promise<Product[]> {
-  try {
-    const tableExists = await checkTableExists('products');
-    
-    if (!tableExists) {
-      // Return mock data for demo purposes
-      return [
-        {
-          id: '1',
-          name: 'Développement web',
-          description: 'Services de développement de site web',
-          price: 1200,
-          category: 'Services',
-          sku: 'DEV-WEB-001',
-          tax_rate: 20,
-          created_at: '2023-05-10T08:00:00Z',
-          updated_at: '2023-05-10T08:00:00Z',
-          active: true
-        },
-        {
-          id: '2',
-          name: 'Maintenance mensuelle',
-          description: 'Service de maintenance de site web',
-          price: 250,
-          category: 'Abonnements',
-          sku: 'MAINT-001',
-          tax_rate: 20,
-          created_at: '2023-05-15T10:30:00Z',
-          updated_at: '2023-05-15T10:30:00Z',
-          active: true
-        }
-      ];
-    }
-    
-    // If table exists, fetch actual data
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error("Error fetching products:", error);
-      return [];
-    }
-    
-    return data.map(product => ({
-      ...product,
-      price: typeof product.price === 'string' ? parseFloat(product.price) : product.price
-    })) as Product[];
-  } catch (error) {
-    console.error("Error in fetchProducts:", error);
-    return [];
-  }
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category_id?: string;
+  sku?: string;
+  tax_rate?: number;
+  active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Get product by ID
-export async function getProduct(id: string): Promise<Product | null> {
-  try {
-    const tableExists = await checkTableExists('products');
-
-    if (!tableExists) {
-      // Return mock data for demo
-      const mockProducts = await fetchProducts();
-      return mockProducts.find(product => product.id === id) || null;
-    }
-
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error("Error fetching product:", error);
-      return null;
-    }
-
-    return {
-      ...data,
-      price: typeof data.price === 'string' ? parseFloat(data.price) : data.price
-    } as Product;
-  } catch (error) {
-    console.error("Error in getProduct:", error);
-    return null;
-  }
-}
-
-// Create a new product
-export async function createProduct(product: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Product | null, error: any }> {
-  try {
-    const tableExists = await checkTableExists('products');
-
-    if (!tableExists) {
-      console.log('Products table does not exist, returning mock success');
-      const mockProduct: Product = {
-        id: uuidv4(),
-        ...product,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Product;
-      return { data: mockProduct, error: null };
-    }
-
-    const newProduct: Product = {
-      id: uuidv4(),
-      ...product,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    } as Product;
-
-    const { data, error } = await supabase
-      .from('products')
-      .insert([newProduct])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating product:", error);
-      return { data: null, error };
-    }
-
-    return { data: data as Product, error: null };
-  } catch (error) {
-    console.error("Error in createProduct:", error);
-    return { data: null, error: error };
-  }
-}
-
-// Update an existing product
-export async function updateProduct(id: string, updates: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at'>>): Promise<{ data: Product | null, error: any }> {
-  try {
-    const tableExists = await checkTableExists('products');
-
-    if (!tableExists) {
-      console.log('Products table does not exist, returning mock success');
-      const mockProduct: Product = {
-        id,
-        ...updates,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Product;
-      return { data: mockProduct, error: null };
-    }
-
-    const { data, error } = await supabase
-      .from('products')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating product:", error);
-      return { data: null, error };
-    }
-
-    return { data: data as Product, error: null };
-  } catch (error) {
-    console.error("Error in updateProduct:", error);
-    return { data: null, error: error };
-  }
-}
-
-// Delete a product
-export async function deleteProduct(id: string): Promise<boolean> {
-  try {
-    const tableExists = await checkTableExists('products');
-
-    if (!tableExists) {
-      console.log('Products table does not exist, returning mock success');
-      return true;
-    }
-
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error("Error deleting product:", error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error in deleteProduct:", error);
-    return false;
-  }
-}
-
-// Interface for product category
 export interface ProductCategory {
   id: string;
   name: string;
-  description?: string;
   color?: string;
   created_at?: string;
   updated_at?: string;
 }
 
-// Fetch all categories
-export async function getCategories(): Promise<ProductCategory[]> {
+// Alias for backwards compatibility
+export const getCategories = async (): Promise<ProductCategory[]> => {
+  // Implementation of getCategories
   try {
-    const tableExists = await checkTableExists('product_categories');
-    
-    if (!tableExists) {
-      // Return mock data for demo purposes
-      return [
-        {
-          id: '1',
-          name: 'Services',
-          description: 'Services informatiques et de développement',
-          color: '#6366F1',
-          created_at: '2023-05-10T08:00:00Z',
-          updated_at: '2023-05-10T08:00:00Z'
-        },
-        {
-          id: '2',
-          name: 'Produits',
-          description: 'Produits physiques',
-          color: '#10B981',
-          created_at: '2023-05-15T10:30:00Z',
-          updated_at: '2023-05-15T10:30:00Z'
-        },
-        {
-          id: '3',
-          name: 'Abonnements',
-          description: 'Services récurrents et abonnements',
-          color: '#F59E0B',
-          created_at: '2023-05-20T14:20:00Z',
-          updated_at: '2023-05-20T14:20:00Z'
-        }
-      ];
-    }
-    
-    // If table exists, fetch actual data
     const { data, error } = await supabase
       .from('product_categories')
       .select('*')
-      .order('name', { ascending: true });
+      .order('name');
     
     if (error) {
-      console.error("Error fetching categories:", error);
+      console.error('Error fetching categories:', error);
       return [];
     }
     
-    return data as ProductCategory[];
+    return data || [];
   } catch (error) {
-    console.error("Error in getCategories:", error);
+    console.error('Error in getCategories:', error);
+    return [];
+  }
+};
+
+// Alias for backwards compatibility
+export const fetchCategories = getCategories;
+
+// Function to fetch all products
+export async function fetchProducts(): Promise<Product[]> {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('name');
+      
+    if (error) {
+      console.error('Error fetching products:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchProducts:', error);
     return [];
   }
 }
 
-// Create a new category
-export async function createCategory(category: Omit<ProductCategory, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: ProductCategory | null, error: any }> {
+// Function to fetch a single product by ID
+export async function fetchProductById(id: string): Promise<Product | null> {
   try {
-    const tableExists = await checkTableExists('product_categories');
-
-    if (!tableExists) {
-      console.log('Product categories table does not exist, returning mock success');
-      const mockCategory: ProductCategory = {
-        id: uuidv4(),
-        ...category,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      return { data: mockCategory, error: null };
-    }
-
-    const newCategory = {
-      id: uuidv4(),
-      ...category,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
     const { data, error } = await supabase
-      .from('product_categories')
-      .insert([newCategory])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating category:", error);
-      return { data: null, error };
-    }
-
-    return { data: data as ProductCategory, error: null };
-  } catch (error) {
-    console.error("Error in createCategory:", error);
-    return { data: null, error: error };
-  }
-}
-
-// Update an existing category
-export async function updateCategory(id: string, updates: Partial<Omit<ProductCategory, 'id' | 'created_at' | 'updated_at'>>): Promise<{ data: ProductCategory | null, error: any }> {
-  try {
-    const tableExists = await checkTableExists('product_categories');
-
-    if (!tableExists) {
-      console.log('Product categories table does not exist, returning mock success');
-      return { data: { id, ...updates } as ProductCategory, error: null };
-    }
-
-    const { data, error } = await supabase
-      .from('product_categories')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .from('products')
+      .select('*')
       .eq('id', id)
-      .select()
       .single();
-
+      
     if (error) {
-      console.error("Error updating category:", error);
-      return { data: null, error };
+      console.error(`Error fetching product ${id}:`, error);
+      return null;
     }
-
-    return { data: data as ProductCategory, error: null };
+    
+    return data;
   } catch (error) {
-    console.error("Error in updateCategory:", error);
-    return { data: null, error: error };
+    console.error('Error in fetchProductById:', error);
+    return null;
   }
 }
 
-// Delete a category
-export async function deleteCategory(id: string): Promise<boolean> {
+// Function to create a new product
+export async function createProduct(productData: Partial<Product>): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
-    const tableExists = await checkTableExists('product_categories');
-
-    if (!tableExists) {
-      console.log('Product categories table does not exist, returning mock success');
-      return true;
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    
+    const productToInsert = {
+      ...productData,
+      id,
+      created_at: now,
+      updated_at: now
+    };
+    
+    const { error } = await supabase
+      .from('products')
+      .insert(productToInsert);
+      
+    if (error) {
+      console.error('Error creating product:', error);
+      return { success: false, error: error.message };
     }
+    
+    return { success: true, id };
+  } catch (error) {
+    console.error('Error in createProduct:', error);
+    return { success: false, error: 'Une erreur inattendue est survenue' };
+  }
+}
 
+// Function to update an existing product
+export async function updateProduct(id: string, productData: Partial<Product>): Promise<{ success: boolean; error?: string }> {
+  try {
+    const now = new Date().toISOString();
+    
+    const productToUpdate = {
+      ...productData,
+      updated_at: now
+    };
+    
+    const { error } = await supabase
+      .from('products')
+      .update(productToUpdate)
+      .eq('id', id);
+      
+    if (error) {
+      console.error('Error updating product:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateProduct:', error);
+    return { success: false, error: 'Une erreur inattendue est survenue' };
+  }
+}
+
+// Function to delete a product
+export async function deleteProduct(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      console.error('Error deleting product:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error in deleteProduct:', error);
+    return { success: false, error: 'Une erreur inattendue est survenue' };
+  }
+}
+
+// Function to create a new category
+export async function createCategory(categoryData: Partial<ProductCategory>): Promise<{ success: boolean; error?: string; id?: string }> {
+  try {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    
+    const categoryToInsert = {
+      ...categoryData,
+      id,
+      created_at: now,
+      updated_at: now
+    };
+    
+    const { error } = await supabase
+      .from('product_categories')
+      .insert(categoryToInsert);
+      
+    if (error) {
+      console.error('Error creating category:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true, id };
+  } catch (error) {
+    console.error('Error in createCategory:', error);
+    return { success: false, error: 'Une erreur inattendue est survenue' };
+  }
+}
+
+// Function to update an existing category
+export async function updateCategory(id: string, categoryData: Partial<ProductCategory>): Promise<{ success: boolean; error?: string }> {
+  try {
+    const now = new Date().toISOString();
+    
+    const categoryToUpdate = {
+      ...categoryData,
+      updated_at: now
+    };
+    
+    const { error } = await supabase
+      .from('product_categories')
+      .update(categoryToUpdate)
+      .eq('id', id);
+      
+    if (error) {
+      console.error('Error updating category:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateCategory:', error);
+    return { success: false, error: 'Une erreur inattendue est survenue' };
+  }
+}
+
+// Function to delete a category
+export async function deleteCategory(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
     const { error } = await supabase
       .from('product_categories')
       .delete()
       .eq('id', id);
-
+      
     if (error) {
-      console.error("Error deleting category:", error);
-      return false;
+      console.error('Error deleting category:', error);
+      return { success: false, error: error.message };
     }
-
-    return true;
+    
+    return { success: true };
   } catch (error) {
-    console.error("Error in deleteCategory:", error);
-    return false;
+    console.error('Error in deleteCategory:', error);
+    return { success: false, error: 'Une erreur inattendue est survenue' };
   }
 }
-
-// Format price for display
-export function formatPrice(price: number, currency: string = 'EUR'): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: currency
-  }).format(price);
-}
-
-// Add convenience alias for fetchProducts
-export const fetchCategories = getCategories;
-export const getProducts = fetchProducts;
