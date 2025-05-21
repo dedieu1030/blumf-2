@@ -27,9 +27,19 @@ export async function fetchClients(): Promise<Client[]> {
       if (error) throw error;
       
       return (data || []).map((client: any) => ({
-        ...client,
+        id: client.id,
         name: client.client_name || 'Unnamed Client',
-        user_id: client.company_id
+        client_name: client.client_name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        address: client.address || '',
+        notes: client.notes || '',
+        reference_number: client.reference_number || '',
+        company_id: client.company_id,
+        user_id: client.user_id || client.company_id,
+        group_id: client.group_id,
+        created_at: client.created_at || new Date().toISOString(),
+        updated_at: client.updated_at || new Date().toISOString()
       })) as Client[];
       
     } catch (error) {
@@ -66,9 +76,19 @@ export async function fetchClient(id: string): Promise<Client | null> {
       if (error) throw error;
       
       return {
-        ...data,
+        id: data.id,
         name: data.client_name || 'Unnamed Client',
-        user_id: data.company_id
+        client_name: data.client_name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        address: data.address || '',
+        notes: data.notes || '',
+        reference_number: data.reference_number || '',
+        company_id: data.company_id,
+        user_id: data.user_id || data.company_id,
+        group_id: data.group_id,
+        created_at: data.created_at || new Date().toISOString(),
+        updated_at: data.updated_at || new Date().toISOString()
       } as Client;
       
     } catch (error) {

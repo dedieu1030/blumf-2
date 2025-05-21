@@ -228,7 +228,7 @@ export async function saveReminderSchedule(schedule: ReminderSchedule): Promise<
       id: scheduleId,
       name: schedule.name,
       enabled: schedule.enabled,
-      is_default: schedule.isDefault || schedule.is_default || false,
+      is_default: schedule.isDefault || false,
       updated_at: new Date().toISOString(),
       ...(isNew ? { created_at: new Date().toISOString() } : {})
     };
