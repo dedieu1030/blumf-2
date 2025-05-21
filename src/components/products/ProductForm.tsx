@@ -22,10 +22,11 @@ import {
   createProduct,
   updateProduct,
   getCategories,
-  Product
+  ProductCategory
 } from "@/services/productService";
 import { availableCurrencies } from "@/services/invoiceSettingsService";
 import { TaxRateSelector } from "@/components/settings/TaxRateSelector";
+import { Product } from "@/types/product";
 
 interface ProductFormProps {
   open: boolean;

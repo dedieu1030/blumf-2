@@ -193,3 +193,170 @@ export async function deleteProduct(id: string): Promise<boolean> {
     return false;
   }
 }
+
+// Interface for product category
+export interface ProductCategory {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Fetch all categories
+export async function getCategories(): Promise<ProductCategory[]> {
+  try {
+    const tableExists = await checkTableExists('product_categories');
+    
+    if (!tableExists) {
+      // Return mock data for demo purposes
+      return [
+        {
+          id: '1',
+          name: 'Services',
+          description: 'Services informatiques et de développement',
+          created_at: '2023-05-10T08:00:00Z',
+          updated_at: '2023-05-10T08:00:00Z'
+        },
+        {
+          id: '2',
+          name: 'Produits',
+          description: 'Produits physiques',
+          created_at: '2023-05-15T10:30:00Z',
+          updated_at: '2023-05-15T10:30:00Z'
+        },
+        {
+          id: '3',
+          name: 'Abonnements',
+          description: 'Services récurrents et abonnements',
+          created_at: '2023-05-20T14:20:00Z',
+          updated_at: '2023-05-20T14:20:00Z'
+        }
+      ];
+    }
+    
+    // If table exists, fetch actual data
+    const { data, error } = await supabase
+      .from('product_categories')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) {
+      console.error("Error fetching categories:", error);
+      return [];
+    }
+    
+    return data as ProductCategory[];
+  } catch (error) {
+    console.error("Error in getCategories:", error);
+    return [];
+  }
+}
+
+// Create a new category
+export async function createCategory(category: Omit<ProductCategory, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: ProductCategory | null, error: any }> {
+  try {
+    const tableExists = await checkTableExists('product_categories');
+
+    if (!tableExists) {
+      console.log('Product categories table does not exist, returning mock success');
+      const mockCategory: ProductCategory = {
+        id: uuidv4(),
+        ...category,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      return { data: mockCategory, error: null };
+    }
+
+    const newCategory = {
+      id: uuidv4(),
+      ...category,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('product_categories')
+      .insert([newCategory])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating category:", error);
+      return { data: null, error };
+    }
+
+    return { data: data as ProductCategory, error: null };
+  } catch (error) {
+    console.error("Error in createCategory:", error);
+    return { data: null, error: error };
+  }
+}
+
+// Update an existing category
+export async function updateCategory(id: string, updates: Partial<Omit<ProductCategory, 'id' | 'created_at' | 'updated_at'>>): Promise<{ data: ProductCategory | null, error: any }> {
+  try {
+    const tableExists = await checkTableExists('product_categories');
+
+    if (!tableExists) {
+      console.log('Product categories table does not exist, returning mock success');
+      return { data: { id, ...updates } as ProductCategory, error: null };
+    }
+
+    const { data, error } = await supabase
+      .from('product_categories')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating category:", error);
+      return { data: null, error };
+    }
+
+    return { data: data as ProductCategory, error: null };
+  } catch (error) {
+    console.error("Error in updateCategory:", error);
+    return { data: null, error: error };
+  }
+}
+
+// Delete a category
+export async function deleteCategory(id: string): Promise<boolean> {
+  try {
+    const tableExists = await checkTableExists('product_categories');
+
+    if (!tableExists) {
+      console.log('Product categories table does not exist, returning mock success');
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('product_categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error("Error deleting category:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in deleteCategory:", error);
+    return false;
+  }
+}
+
+// Format price for display
+export function formatPrice(price: number, currency: string = 'EUR'): string {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: currency
+  }).format(price);
+}
+
+// Alias for fetchProducts for compatibility with existing code
+export const getProducts = fetchProducts;
