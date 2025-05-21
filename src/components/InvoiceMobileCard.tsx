@@ -31,7 +31,10 @@ export function InvoiceMobileCard({
             <div className="font-medium">{invoice.invoice_number}</div>
             <div className="text-sm text-gray-500">{invoice.client?.client_name || invoice.client_name || 'N/A'}</div>
           </div>
-          <InvoiceStatus status={invoice.status} onStatusChange={onStatusChange} />
+          <InvoiceStatus 
+            status={invoice.status} 
+            onStatusChange={onStatusChange}
+          />
         </div>
         
         <div className="flex justify-between mt-2">

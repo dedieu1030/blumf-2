@@ -51,6 +51,8 @@ export const InvoiceList = ({
             invoice={invoice} 
             onStatusChange={onInvoiceStatusChanged}
             onViewClick={() => handleRowClick(invoice)}
+            onEditClick={() => console.log("Edit invoice:", invoice.id)}
+            onDeleteClick={() => console.log("Delete invoice:", invoice.id)}
           />
         ))}
       </div>

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { Notification } from "@/types/notification";
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/services/notificationService";
 import { useToast } from "@/hooks/use-toast";
+import { initializeTables } from "@/utils/mockDatabaseSetup";
 
 interface NotificationsContextType {
   notifications: Notification[];
@@ -69,7 +70,12 @@ export const NotificationsProvider = ({ children }: { children: React.ReactNode 
   };
 
   useEffect(() => {
+    // Initialize tables to ensure they exist
+    initializeTables();
+    
+    // Fetch notifications
     fetchUserNotifications();
+    
     // Set up polling for new notifications every 5 minutes
     const intervalId = setInterval(fetchUserNotifications, 5 * 60 * 1000);
     return () => clearInterval(intervalId);

@@ -7,9 +7,10 @@ import { Status } from "@/types/invoice";
 interface InvoiceStatusProps {
   status: Status;
   className?: string;
+  onStatusChange?: () => void; // Added this prop
 }
 
-export function InvoiceStatus({ status, className }: InvoiceStatusProps) {
+export function InvoiceStatus({ status, className, onStatusChange }: InvoiceStatusProps) {
   const { t } = useTranslation();
   
   const getStatusDetails = (status: Status) => {
@@ -53,6 +54,7 @@ export function InvoiceStatus({ status, className }: InvoiceStatusProps) {
     <Badge 
       variant="outline" 
       className={cn("rounded-md font-normal", statusClassName, className)}
+      onClick={onStatusChange} // Use the prop
     >
       {label}
     </Badge>

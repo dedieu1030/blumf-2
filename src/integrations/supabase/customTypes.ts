@@ -102,6 +102,7 @@ export interface ExtendedDatabase extends Database {
           total_amount: number;
           created_at: string;
           updated_at: string;
+          client_name?: string; // Add for simplified querying
         };
         Insert: {
           id?: string;
@@ -113,6 +114,7 @@ export interface ExtendedDatabase extends Database {
           total_amount: number;
           created_at?: string;
           updated_at?: string;
+          client_name?: string;
         };
         Update: {
           id?: string;
@@ -124,6 +126,7 @@ export interface ExtendedDatabase extends Database {
           total_amount?: number;
           created_at?: string;
           updated_at?: string;
+          client_name?: string;
         };
         Relationships: [
           {
@@ -145,6 +148,9 @@ export interface ExtendedDatabase extends Database {
           read: boolean;
           link: string | null;
           created_at: string;
+          reference_type?: string;
+          reference_id?: string;
+          metadata?: Record<string, any>;
         };
         Insert: {
           id?: string;
@@ -155,6 +161,9 @@ export interface ExtendedDatabase extends Database {
           read?: boolean;
           link?: string | null;
           created_at?: string;
+          reference_type?: string;
+          reference_id?: string;
+          metadata?: Record<string, any>;
         };
         Update: {
           id?: string;
@@ -165,8 +174,151 @@ export interface ExtendedDatabase extends Database {
           read?: boolean;
           link?: string | null;
           created_at?: string;
+          reference_type?: string;
+          reference_id?: string;
+          metadata?: Record<string, any>;
         };
         Relationships: []
+      };
+      products: {
+        Row: {
+          id: string;
+          name: string;
+          description?: string;
+          price_cents: number;
+          currency?: string;
+          category_id?: string;
+          is_recurring: boolean;
+          recurring_interval?: string;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string;
+          price_cents: number;
+          currency?: string;
+          category_id?: string;
+          is_recurring?: boolean;
+          recurring_interval?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string;
+          price_cents?: number;
+          currency?: string;
+          category_id?: string;
+          is_recurring?: boolean;
+          recurring_interval?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: []
+      };
+      product_categories: {
+        Row: {
+          id: string;
+          name: string;
+          description?: string;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: []
+      };
+      reminder_schedules: {
+        Row: {
+          id: string;
+          name: string;
+          enabled: boolean;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          enabled?: boolean;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          enabled?: boolean;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: []
+      };
+      reminder_rules: {
+        Row: {
+          id: string;
+          schedule_id: string;
+          trigger_type: string;
+          trigger_value: number;
+          email_subject: string;
+          email_body: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          schedule_id: string;
+          trigger_type: string;
+          trigger_value: number;
+          email_subject?: string;
+          email_body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          schedule_id?: string;
+          trigger_type?: string;
+          trigger_value?: number;
+          email_subject?: string;
+          email_body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reminder_rules_schedule_id_fkey";
+            columns: ["schedule_id"];
+            isOneToOne: false;
+            referencedRelation: "reminder_schedules";
+            referencedColumns: ["id"];
+          }
+        ]
       };
     };
     Views: Database['public']['Views'];
