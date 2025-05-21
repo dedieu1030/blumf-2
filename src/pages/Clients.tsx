@@ -63,7 +63,9 @@ const Clients = () => {
       setClients(adaptedClients as Client[]);
     } catch (error) {
       console.error('Error fetching clients:', error);
-      toast.error('Erreur lors du chargement des clients');
+      toast("Erreur lors du chargement des clients", {
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -89,16 +91,20 @@ const Clients = () => {
       const { error } = await safeDeleteClient(id);
       
       if (error) {
-        toast.error("Erreur lors de la suppression du client");
+        toast("Erreur lors de la suppression du client", {
+          variant: "destructive"
+        });
         return;
       }
       
       // Remove the client from the local state
       setClients(prev => prev.filter(client => client.id !== id));
-      toast.success("Client supprimé avec succès");
+      toast("Client supprimé avec succès");
     } catch (error) {
       console.error("Error deleting client:", error);
-      toast.error("Erreur lors de la suppression du client");
+      toast("Erreur lors de la suppression du client", {
+        variant: "destructive"
+      });
     } finally {
       setDeletingClientId(null);
       setDeleteDialogOpen(false);
@@ -120,7 +126,9 @@ const Clients = () => {
       setClients(clients.filter(client => client.id !== selectedClient.id));
     } catch (error) {
       console.error('Error deleting client:', error);
-      toast.error('Erreur lors de la suppression du client');
+      toast("Erreur lors de la suppression du client", {
+        variant: "destructive"
+      });
     } finally {
       setDeleteDialogOpen(false);
       setSelectedClient(null);
@@ -184,7 +192,9 @@ const Clients = () => {
       setIsEditModalOpen(false);
     } catch (error) {
       console.error('Error updating client:', error);
-      toast.error('Erreur lors de la mise à jour du client');
+      toast("Erreur lors de la mise à jour du client", {
+        variant: "destructive"
+      });
     } finally {
       setUpdateLoading(false);
     }

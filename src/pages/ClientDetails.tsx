@@ -64,21 +64,25 @@ export default function ClientDetails() {
         const { data, error } = await safeGetClientById(id);
         
         if (error || !data) {
-          toast.error("Erreur lors du chargement des données du client");
+          toast("Erreur lors du chargement des données du client", {
+            variant: "destructive"
+          });
           return;
         }
         
-        setClient(data);
+        setClient(data as Client);
       } catch (error) {
         console.error("Error fetching client:", error);
-        toast.error("Erreur lors du chargement des données du client");
+        toast("Erreur lors du chargement des données du client", {
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchClient();
-  }, [id, toast]);
+  }, [id]);
   
   // Fetch client invoices
   useEffect(() => {
@@ -219,15 +223,19 @@ export default function ClientDetails() {
       const { error } = await safeDeleteClient(client.id);
       
       if (error) {
-        toast.error("Erreur lors de la suppression du client");
+        toast("Erreur lors de la suppression du client", {
+          variant: "destructive"
+        });
         return;
       }
       
-      toast.success("Client supprimé avec succès");
+      toast("Client supprimé avec succès");
       navigate("/clients");
     } catch (error) {
       console.error("Error deleting client:", error);
-      toast.error("Erreur lors de la suppression du client");
+      toast("Erreur lors de la suppression du client", {
+        variant: "destructive"
+      });
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
