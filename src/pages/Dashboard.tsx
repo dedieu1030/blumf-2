@@ -1,118 +1,134 @@
 
-import { DashboardStats } from "@/components/DashboardStats";
-import { Header } from "@/components/Header";
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { InvoiceList } from "@/components/InvoiceList";
-import { useEffect, useState } from "react";
-import { Invoice } from "@/types/invoice";
-import { supabase } from "@/integrations/supabase/client";
-import { QuickAction } from "@/components/QuickAction";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, FileText } from "lucide-react";
+import { ArrowRight, CreditCard, Package, Users, FileText } from "lucide-react";
+import { RecentSales } from "@/components/RecentSales";
+import { Overview } from "@/components/Overview";
+import { useTranslation } from "react-i18next";
+import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { getMockRecentInvoices, getMockOverdueInvoices } from '@/services/mockDataService';
+
+import { DashboardStats } from "@/components/DashboardStats";
+import { InvoiceList } from "@/components/InvoiceList";
+import { Header } from "@/components/Header";
+import { QuickAction } from "@/components/QuickAction";
+import { Invoice } from "@/types/invoice";
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [overdueInvoices, setOverdueInvoices] = useState<Invoice[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
 
+  // Load recent invoices
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
+    const fetchRecentInvoices = async () => {
       try {
-        // Fetch stats totals
-        const { data: invoiceStats, error: invoiceStatsError } = await supabase.rpc(
-          'count_invoices_by_status'
-        ).maybeSingle();
-
-        if (invoiceStatsError && !invoiceStatsError.message.includes('does not exist')) {
-          console.error("Error fetching invoice stats:", invoiceStatsError);
-        }
-
-        // Update overdue invoices
-        const { data: overdueData, error: overdueError } = await supabase
+        const { data, error } = await supabase
           .from('invoices')
-          .select('*, client:clients(*)')
-          .eq('status', 'overdue')
-          .order('due_date', { ascending: false });
-          
-        if (overdueError) {
-          console.error("Error fetching overdue invoices:", overdueError);
-        } else {
-          // Transform data for overdue invoices
-          const transformedOverdueInvoices: Invoice[] = (overdueData || [])?.map((invoice) => ({
-            id: invoice.id,
-            invoice_number: invoice.invoice_number,
-            number: invoice.invoice_number, // For compatibility
-            client_name: invoice.client?.client_name || "Client inconnu",
-            client_id: invoice.client_id,
-            amount: invoice.total_amount.toString(),
-            date: invoice.issue_date,
-            due_date: invoice.due_date,
-            status: invoice.status as any
-          }));
-
-          setOverdueInvoices(transformedOverdueInvoices);
-        }
-
-        // Fetch recent invoices
-        const { data: recentData, error: recentError } = await supabase
-          .from('invoices')
-          .select('*, client:clients(*)')
+          .select('*, clients(*)')
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(3);
 
-        if (recentError) {
-          console.error("Error fetching recent invoices:", recentError);
-        } else {
-          // Transform data to match Invoice type
-          const transformedInvoices: Invoice[] = (recentData || [])?.map((invoice) => ({
-            id: invoice.id,
-            invoice_number: invoice.invoice_number,
-            number: invoice.invoice_number, // For compatibility
-            client_name: invoice.client?.client_name || "Client inconnu",
-            client_id: invoice.client_id,
-            amount: invoice.total_amount.toString(),
-            date: invoice.issue_date,
-            due_date: invoice.due_date,
-            status: invoice.status as any
-          }));
-
-          setRecentInvoices(transformedInvoices);
-        }
+        if (error) throw error;
+        setRecentInvoices(data.map((invoice: any) => ({
+          ...invoice,
+          // Add safe access for client_name with fallback
+          client_name: invoice.clients?.client_name || "Unknown Client"
+        })));
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
+        console.error('Error loading recent invoices:', error);
+        // Fallback to mock data
+        setRecentInvoices(getMockRecentInvoices());
       }
     };
 
-    fetchDashboardData();
-  }, []);
+    fetchRecentInvoices();
+  }, [supabase]);
+
+  // Load overdue invoices
+  useEffect(() => {
+    const fetchOverdueInvoices = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('invoices')
+          .select('*, clients(*)')
+          .eq('status', 'overdue')
+          .order('due_date', { ascending: false })
+          .limit(3);
+
+        if (error) throw error;
+        setOverdueInvoices(data.map((invoice: any) => ({
+          ...invoice,
+          // Add safe access for client_name with fallback
+          client_name: invoice.clients?.client_name || "Unknown Client"
+        })));
+      } catch (error) {
+        console.error('Error loading overdue invoices:', error);
+        // Fallback to mock data
+        setOverdueInvoices(getMockOverdueInvoices());
+      }
+    };
+
+    fetchOverdueInvoices();
+  }, [supabase]);
 
   return (
-    <div>
-      <Header
-        title="Dashboard"
-        description="Bienvenue sur votre tableau de bord"
-        onOpenMobileMenu={() => {}}
-        actions={<QuickAction />}
-      />
-      
-      <DashboardStats
-        overdueInvoices={overdueInvoices}
-      />
-
+    <>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("totalRevenue", "Revenu total")}</CardTitle>
+            <FileText className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">45 231,89 €</div>
+            <p className="text-sm text-green-500">+20.1% {t("fromLastMonth", "du mois dernier")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("subscriptions", "Abonnements")}</CardTitle>
+            <Users className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+2350</div>
+            <p className="text-sm text-green-500">+180.1% {t("fromLastMonth", "du mois dernier")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("salesCount", "Ventes")}</CardTitle>
+            <CreditCard className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+12,234</div>
+            <p className="text-sm text-red-500">-19% {t("fromLastMonth", "du mois dernier")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("activeProjects", "Projets actifs")}</CardTitle>
+            <Package className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+573</div>
+            <p className="text-sm text-green-500">+201 {t("fromLastMonth", "du mois dernier")}</p>
+          </CardContent>
+        </Card>
+      </div>
       <div className="grid grid-cols-1 gap-6 mt-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-xl">Factures récentes</CardTitle>
-              <CardDescription>Les 5 dernières factures créées</CardDescription>
+              <CardTitle className="text-xl">{t("recentInvoices", "Factures récentes")}</CardTitle>
+              <CardDescription>{t("last5Invoices", "Les 5 dernières factures créées")}</CardDescription>
             </div>
             <Link to="/invoices">
               <Button variant="ghost" size="sm" className="gap-1">
-                <FileText className="h-4 w-4" /> Toutes les factures
+                <FileText className="h-4 w-4" /> {t("allInvoices", "Toutes les factures")}
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
@@ -125,7 +141,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </>
   );
 };
 
