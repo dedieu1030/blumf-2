@@ -199,6 +199,7 @@ export interface ProductCategory {
   id: string;
   name: string;
   description?: string;
+  color?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -215,6 +216,7 @@ export async function getCategories(): Promise<ProductCategory[]> {
           id: '1',
           name: 'Services',
           description: 'Services informatiques et de développement',
+          color: '#6366F1',
           created_at: '2023-05-10T08:00:00Z',
           updated_at: '2023-05-10T08:00:00Z'
         },
@@ -222,6 +224,7 @@ export async function getCategories(): Promise<ProductCategory[]> {
           id: '2',
           name: 'Produits',
           description: 'Produits physiques',
+          color: '#10B981',
           created_at: '2023-05-15T10:30:00Z',
           updated_at: '2023-05-15T10:30:00Z'
         },
@@ -229,6 +232,7 @@ export async function getCategories(): Promise<ProductCategory[]> {
           id: '3',
           name: 'Abonnements',
           description: 'Services récurrents et abonnements',
+          color: '#F59E0B',
           created_at: '2023-05-20T14:20:00Z',
           updated_at: '2023-05-20T14:20:00Z'
         }
@@ -358,5 +362,6 @@ export function formatPrice(price: number, currency: string = 'EUR'): string {
   }).format(price);
 }
 
-// Alias for fetchProducts for compatibility with existing code
+// Add convenience alias for fetchProducts
+export const fetchCategories = getCategories;
 export const getProducts = fetchProducts;

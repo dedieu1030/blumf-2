@@ -1,3 +1,4 @@
+// src/components/products/ProductForm.tsx
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -10,355 +11,228 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  createProduct,
-  updateProduct,
-  getCategories,
-  ProductCategory
-} from "@/services/productService";
-import { availableCurrencies } from "@/services/invoiceSettingsService";
-import { TaxRateSelector } from "@/components/settings/TaxRateSelector";
-import { Product } from "@/types/product";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { createProduct, updateProduct, getCategories, Product, ProductCategory } from "@/services/productService";
 
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  product?: Product | null;
-  onUpdate?: () => void;
+  onSave: () => void;
+  initialData?: Product;
 }
 
-export function ProductForm({ open, onOpenChange, product, onUpdate }: ProductFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
-  
-  // Form state
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [priceCents, setPriceCents] = useState("");
-  const [currency, setCurrency] = useState("EUR");
-  const [taxRate, setTaxRate] = useState<number>(20); // Using number type for taxRate
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringInterval, setRecurringInterval] = useState<string | null>("month");
-  const [recurringIntervalCount, setRecurringIntervalCount] = useState("1");
-  const [productType, setProductType] = useState<string | null>("service");
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [active, setActive] = useState(true);
-  
-  // Load categories
+export function ProductForm({ open, onOpenChange, onSave, initialData }: ProductFormProps) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    price: "0",
+    category_id: "",
+    sku: "",
+    tax_rate: 0,
+    active: true,
+  });
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     const loadCategories = async () => {
+      setIsLoading(true);
       const data = await getCategories();
       setCategories(data);
+      setIsLoading(false);
     };
-    
+
     loadCategories();
   }, []);
-  
-  // Reset form when dialog opens or product changes
+
   useEffect(() => {
-    if (open) {
-      if (product) {
-        setName(product.name);
-        setDescription(product.description || "");
-        setPriceCents(product.price_cents?.toString() || "");
-        setCurrency(product.currency || "EUR");
-        // Handle tax_rate properly, converting to number if it's a string
-        setTaxRate(typeof product.tax_rate === 'string' ? parseFloat(product.tax_rate) || 0 : (product.tax_rate || 0));
-        setIsRecurring(product.is_recurring || false);
-        setRecurringInterval(product.recurring_interval);
-        setRecurringIntervalCount(product.recurring_interval_count?.toString() || "1");
-        setProductType(product.product_type);
-        setCategoryId(product.category_id || null);
-        setActive(product.active !== undefined ? product.active : true);
-      } else {
-        // Default values for new product
-        setName("");
-        setDescription("");
-        setPriceCents("");
-        setCurrency("EUR");
-        setTaxRate(20);
-        setIsRecurring(false);
-        setRecurringInterval("month");
-        setRecurringIntervalCount("1");
-        setProductType("service");
-        setCategoryId(null);
-        setActive(true);
-      }
+    if (initialData) {
+      setFormData({
+        name: initialData.name,
+        description: initialData.description,
+        price: initialData.price.toString(),
+        category_id: initialData.category_id || "",
+        sku: initialData.sku || "",
+        tax_rate: initialData.tax_rate || 0,
+        active: initialData.active !== undefined ? initialData.active : true,
+      });
+    } else {
+      setFormData({
+        name: "",
+        description: "",
+        price: "0",
+        category_id: "",
+        sku: "",
+        tax_rate: 0,
+        active: true,
+      });
     }
-  }, [open, product]);
-  
-  // Handle tax rate change as a number
-  const handleTaxRateChange = (value: number) => {
-    setTaxRate(value);
+  }, [initialData]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  const handleSelectCategory = (value: string) => {
+    setFormData(prev => ({ ...prev, category_id: value }));
+  };
+
+  const handleActiveChange = (value: boolean) => {
+    setFormData(prev => ({ ...prev, active: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
   
-  const handleSubmit = async () => {
-    setIsLoading(true);
-    
+    // Convert price from string to number before saving
+    const productData = {
+      ...formData,
+      price: parseFloat(formData.price as string),
+      price_cents: formData.price_cents,
+    };
+  
     try {
-      // Validate required fields
-      if (!name) {
-        alert("Veuillez saisir un nom");
-        setIsLoading(false);
-        return;
-      }
-      
-      // Convert price to cents (integer)
-      const price_cents = priceCents ? parseInt(priceCents) : 0;
-      
-      // Prepare product data
-      const productData = {
-        name,
-        description: description || undefined,
-        price_cents,
-        price: (price_cents / 100).toFixed(2),
-        currency,
-        tax_rate: taxRate,
-        is_recurring: isRecurring,
-        product_type: productType as 'product' | 'service' | null,
-        active,
-        recurring_interval: isRecurring ? (recurringInterval as 'day' | 'week' | 'month' | 'year') : undefined,
-        recurring_interval_count: isRecurring && recurringIntervalCount ? parseInt(recurringIntervalCount) : undefined,
-        category_id: categoryId && categoryId !== "none" ? categoryId : undefined
-      };
-      
-      if (product) {
-        // Update existing product
-        await updateProduct(product.id, productData);
+      if (initialData) {
+        await updateProduct(initialData.id, productData);
       } else {
-        // Create new product
         await createProduct(productData);
       }
       
-      // Callback to refresh data
-      if (onUpdate) {
-        onUpdate();
-      }
-      
-      // Close the dialog
+      toast({
+        title: "Produit enregistré",
+        description: "Les informations du produit ont été enregistrées avec succès.",
+      });
+      onSave();
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving product:", error);
-    } finally {
-      setIsLoading(false);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'enregistrement du produit.",
+        variant: "destructive",
+      });
     }
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {product ? "Modifier le produit" : "Nouveau produit/service"}
-          </DialogTitle>
+          <DialogTitle>{initialData ? "Modifier le produit" : "Nouveau produit"}</DialogTitle>
         </DialogHeader>
-        
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="product-type" className="col-span-4 md:col-span-1">
-              Type
-            </Label>
-            <Select
-              value={productType || ""}
-              onValueChange={setProductType}
-            >
-              <SelectTrigger
-                id="product-type"
-                className="col-span-4 md:col-span-3"
-              >
-                <SelectValue placeholder="Sélectionnez un type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="product">Produit</SelectItem>
-                <SelectItem value="service">Service</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="col-span-4 md:col-span-1">
-              Nom *
-            </Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="col-span-4 md:col-span-3"
-              placeholder="Nom du produit ou service"
-              required
-            />
-          </div>
-          
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="col-span-4 md:col-span-1 pt-2">
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="col-span-4 md:col-span-3 min-h-[100px]"
-              placeholder="Description détaillée"
-            />
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="price" className="col-span-4 md:col-span-1">
-              Prix HT
-            </Label>
-            <div className="col-span-2 md:col-span-2 flex items-center">
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Nom
+              </Label>
               <Input
-                id="price"
-                type="number"
-                value={priceCents}
-                onChange={(e) => setPriceCents(e.target.value)}
-                placeholder="0.00"
-                step="0.01"
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="col-span-3"
+                required
               />
             </div>
-            <div className="col-span-2 md:col-span-1">
-              <Select
-                value={currency}
-                onValueChange={setCurrency}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="EUR" />
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Description
+              </Label>
+              <Input
+                type="text"
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="price" className="text-right">
+                Prix
+              </Label>
+              <Input
+                type="number"
+                id="price"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                className="col-span-3"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="category" className="text-right">
+                Catégorie
+              </Label>
+              <Select onValueChange={handleSelectCategory} defaultValue={formData.category_id}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Sélectionner une catégorie" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableCurrencies.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.symbol} - {c.name}
-                    </SelectItem>
-                  ))}
+                  {isLoading ? (
+                    <SelectItem value="" disabled>Chargement...</SelectItem>
+                  ) : (
+                    categories.map(category => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="tax-rate" className="col-span-4 md:col-span-1 pt-2">
-              Taux TVA (%)
-            </Label>
-            <div className="col-span-4 md:col-span-3">
-              <TaxRateSelector 
-                defaultValue={taxRate} 
-                onChange={handleTaxRateChange} 
-                showLabel={false} 
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <div className="col-span-4 md:col-span-1">Récurrent</div>
-            <div className="col-span-4 md:col-span-3 flex items-center space-x-2">
-              <Switch
-                checked={isRecurring}
-                onCheckedChange={setIsRecurring}
-                id="recurring"
-              />
-              <Label htmlFor="recurring">
-                Ce produit/service est facturé de manière récurrente
-              </Label>
-            </div>
-          </div>
-          
-          {isRecurring && (
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="col-span-4 md:col-span-1">
-                Périodicité
+              <Label htmlFor="sku" className="text-right">
+                SKU
               </Label>
-              <div className="col-span-2 md:col-span-1">
-                <Input
-                  type="number"
-                  min="1"
-                  value={recurringIntervalCount}
-                  onChange={(e) => setRecurringIntervalCount(e.target.value)}
+              <Input
+                type="text"
+                id="sku"
+                name="sku"
+                value={formData.sku}
+                onChange={handleChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="tax_rate" className="text-right">
+                Taux de taxe
+              </Label>
+              <Input
+                type="number"
+                id="tax_rate"
+                name="tax_rate"
+                value={formData.tax_rate}
+                onChange={handleChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="active" className="text-right">
+                Actif
+              </Label>
+              <div className="col-span-3 flex items-center">
+                <Switch
+                  id="active"
+                  checked={formData.active}
+                  onCheckedChange={handleActiveChange}
                 />
               </div>
-              <div className="col-span-2 md:col-span-2">
-                <Select
-                  value={recurringInterval || ""}
-                  onValueChange={setRecurringInterval}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Intervalle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="day">Jour(s)</SelectItem>
-                    <SelectItem value="week">Semaine(s)</SelectItem>
-                    <SelectItem value="month">Mois</SelectItem>
-                    <SelectItem value="year">Année(s)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="col-span-4 md:col-span-1">
-              Catégorie
-            </Label>
-            <Select
-              value={categoryId || "none"}
-              onValueChange={setCategoryId}
-            >
-              <SelectTrigger
-                id="category"
-                className="col-span-4 md:col-span-3"
-              >
-                <SelectValue placeholder="Sélectionnez une catégorie (optionnel)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Aucune catégorie</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <div className="col-span-4 md:col-span-1">Statut</div>
-            <div className="col-span-4 md:col-span-3 flex items-center space-x-2">
-              <Switch
-                checked={active}
-                onCheckedChange={setActive}
-                id="active"
-              />
-              <Label htmlFor="active">
-                {active ? "Actif" : "Inactif"}
-              </Label>
             </div>
           </div>
-        </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-current rounded-full" />
-                Traitement...
-              </>
-            ) : product ? (
-              "Mettre à jour"
-            ) : (
-              "Créer"
-            )}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button type="submit">
+              {initialData ? "Mettre à jour" : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -14,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, Tag, MoreHorizontal, Edit, Trash, Circle } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { fetchCategories, createCategory, updateCategory, deleteCategory, ProductCategory } from "@/services/productService";
+import { getCategories, createCategory, updateCategory, deleteCategory, ProductCategory } from "@/services/productService";
 
 export function CategoryManager() {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
@@ -30,7 +29,7 @@ export function CategoryManager() {
   useEffect(() => {
     const loadCategories = async () => {
       setIsLoading(true);
-      const data = await fetchCategories();
+      const data = await getCategories();
       setCategories(data);
       setIsLoading(false);
     };
@@ -61,7 +60,7 @@ export function CategoryManager() {
       }
 
       // Refresh categories
-      const data = await fetchCategories();
+      const data = await getCategories();
       setCategories(data);
       setFormDialogOpen(false);
     } catch (error) {
@@ -75,7 +74,7 @@ export function CategoryManager() {
     try {
       await deleteCategory(selectedCategory.id);
       // Refresh categories
-      const data = await fetchCategories();
+      const data = await getCategories();
       setCategories(data);
       setDeleteDialogOpen(false);
     } catch (error) {
