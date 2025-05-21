@@ -12,7 +12,8 @@ export interface ProductCategory {
   updated_at?: string;
 }
 
-export { Product };
+// Export the Product type for use in other files
+export type { Product };
 
 // Format price for display
 export const formatPrice = (price_cents: number | undefined, currency: string = 'EUR'): string => {
