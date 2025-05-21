@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { formatCurrency } from "@/lib/utils";
@@ -23,7 +22,6 @@ export const formatPrice = (price_cents: number | undefined, currency: string = 
 
 // Function to get all product categories
 export const getCategories = async (): Promise<ProductCategory[]> => {
-  // Implementation of getCategories
   try {
     const { data, error } = await supabase
       .from('product_categories')

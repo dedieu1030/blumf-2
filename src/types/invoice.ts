@@ -1,3 +1,4 @@
+
 export interface InvoiceNumberingConfig {
   prefix: string;
   suffix?: string;
@@ -38,7 +39,7 @@ export interface CompanyProfile {
   bankSwift?: string;
   termsAndConditions?: string;
   
-  // Propriétés supplémentaires utilisées dans l'application
+  // Additional properties used in the application
   taxRate?: number;
   emailType?: 'personal' | 'professional' | 'company';
   defaultCurrency?: string;
@@ -49,6 +50,10 @@ export interface CompanyProfile {
   paypal?: string;
   payoneer?: string;
   thankYouMessage?: string;
+  
+  // Properties used in ProfileViewer/ProfileWizard
+  profileType?: 'personal' | 'business';
+  profileSubtype?: string;
 }
 
 export interface InvoiceData {
@@ -58,7 +63,7 @@ export interface InvoiceData {
   paymentTerm: string;
   currency: string;
   companyProfile: CompanyProfile;
-  // Propriétés supplémentaires utilisées dans l'application
+  // Additional properties used in the application
   invoiceNumber?: string;
   clientName?: string;
   clientEmail?: string;
@@ -102,7 +107,7 @@ export interface ReminderSchedule {
   enabled: boolean;
 }
 
-// Types supplémentaires utilisés dans l'application
+// Additional types used in the application
 export interface ServiceLine {
   id: string;
   description: string;
@@ -118,6 +123,13 @@ export interface PaymentMethodDetails {
   name: string;
   details: string;
   enabled: boolean;
+  // Additional properties used in PaymentMethodSelector
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
+  iban?: string;
+  swift?: string;
+  paypalEmail?: string;
 }
 
 export interface PaymentTermTemplate {
@@ -126,12 +138,18 @@ export interface PaymentTermTemplate {
   daysUntilDue: number;
   termsText: string;
   isDefault: boolean;
+  // Properties used in PaymentTermsSettings
+  days?: number;
+  delay?: string;
+  customDate?: string;
+  description?: string;
 }
 
 export interface DiscountInfo {
   type: 'percentage' | 'fixed';
   value: number;
   amount: number;
+  description?: string;
 }
 
 export interface Invoice {
@@ -145,9 +163,14 @@ export interface Invoice {
   created_at: string;
   updated_at: string;
   client?: any;
+  // Additional properties used in InvoiceList and DashboardStats
+  amount?: number | string;
+  client_name?: string;
+  date?: string;
+  number?: string;
 }
 
-export type Status = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+export type Status = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'pending';
 
 export interface SignatureData {
   id: string;
@@ -155,4 +178,8 @@ export interface SignatureData {
   dataUrl: string;
   created_at?: string;
   user_id?: string;
+  // Additional properties used in SignatureCanvas and SignatureDisplay
+  type?: 'drawn' | 'initials' | 'text';
+  initials?: string;
+  timestamp?: string | number;
 }
