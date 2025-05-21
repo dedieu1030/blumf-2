@@ -1,4 +1,3 @@
-
 import { PaymentMethodDetails, PaymentTermTemplate, Currency } from '@/types/invoice';
 
 // Make currencies available for import elsewhere
@@ -117,7 +116,7 @@ export const getDefaultPaymentMethods = (): PaymentMethodDetails[] => {
   ];
 };
 
-// Add the missing saveDefaultPaymentMethods function
+// Add the function to save default payment methods
 export const saveDefaultPaymentMethods = (methods: PaymentMethodDetails[]): void => {
   localStorage.setItem('defaultPaymentMethods', JSON.stringify(methods));
 };
@@ -170,6 +169,27 @@ export const getDefaultPaymentTerms = (): PaymentTermTemplate[] => {
       description: 'Paiement dû dans les 90 jours'
     }
   ];
+};
+
+// Add the missing function to get payment term templates
+// This will either get stored templates from localStorage or return the defaults if none exist
+export const getPaymentTermTemplates = (): PaymentTermTemplate[] => {
+  const savedTerms = localStorage.getItem('paymentTermTemplates');
+  if (savedTerms) {
+    try {
+      return JSON.parse(savedTerms);
+    } catch (error) {
+      console.error('Error parsing saved payment terms:', error);
+    }
+  }
+  
+  // Return default payment terms if none are saved
+  return getDefaultPaymentTerms();
+};
+
+// Add function to save payment term templates
+export const savePaymentTermTemplates = (templates: PaymentTermTemplate[]): void => {
+  localStorage.setItem('paymentTermTemplates', JSON.stringify(templates));
 };
 
 // Add necessary functions that are imported in Invoicing.tsx
