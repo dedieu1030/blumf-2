@@ -1,4 +1,3 @@
-
 import { SignatureData } from "./invoice";
 
 export interface Quote {
