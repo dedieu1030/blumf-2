@@ -1,7 +1,47 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { Subscription, SubscriptionItem, SubscriptionStatus } from "@/types/subscription";
 import { checkTableExists } from "@/utils/databaseTableUtils";
+import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+// Export the types to be used in other components
+export { Subscription, SubscriptionItem, SubscriptionStatus } from "@/types/subscription";
+
+// Function to format dates in French locale
+export function formatDate(dateString?: string): string {
+  if (!dateString) return 'Non définie';
+  
+  try {
+    const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+    return format(date, 'dd MMMM yyyy', { locale: fr });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
+}
+
+// Function to format recurring intervals
+export function formatRecurringInterval(
+  interval: 'month' | 'week' | 'day' | 'quarter' | 'semester' | 'year' | 'custom',
+  count: number = 1
+): string {
+  if (interval === 'custom') {
+    return 'Personnalisé';
+  }
+  
+  const intervalLabels: Record<string, string> = {
+    day: count > 1 ? 'jours' : 'jour',
+    week: count > 1 ? 'semaines' : 'semaine',
+    month: count > 1 ? 'mois' : 'mois',
+    quarter: count > 1 ? 'trimestres' : 'trimestre',
+    semester: count > 1 ? 'semestres' : 'semestre',
+    year: count > 1 ? 'ans' : 'an'
+  };
+  
+  return count > 1 ? `Tous les ${count} ${intervalLabels[interval]}` : `Tous les ${intervalLabels[interval]}`;
+}
 
 // Fonction de vérification de table
 async function checkSubscriptionTablesExist(): Promise<boolean> {
@@ -69,6 +109,64 @@ const mockSubscriptions: Subscription[] = [
   }
 ];
 
+// Function to fetch a single subscription by ID
+export async function fetchSubscription(id: string): Promise<Subscription | null> {
+  try {
+    const tablesExist = await checkSubscriptionTablesExist();
+    
+    if (!tablesExist) {
+      // Return mock data for the requested ID
+      const subscription = mockSubscriptions.find(sub => sub.id === id);
+      return subscription || null;
+    }
+    
+    // Fetch the subscription from the database
+    const { data: subscription, error: subscriptionError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (subscriptionError) {
+      console.error('Error fetching subscription:', subscriptionError);
+      return null;
+    }
+    
+    // Fetch the subscription items
+    const { data: items, error: itemsError } = await supabase
+      .from('subscription_items')
+      .select('*')
+      .eq('subscription_id', id);
+      
+    if (itemsError) {
+      console.error('Error fetching subscription items:', itemsError);
+      return null;
+    }
+    
+    // Fetch the client information
+    const { data: client, error: clientError } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', subscription.client_id)
+      .single();
+      
+    if (clientError) {
+      console.error('Error fetching client:', clientError);
+    }
+    
+    return {
+      ...subscription,
+      items: items || [],
+      client: client || null,
+      recurring_interval: subscription.recurring_interval as 'month' | 'week' | 'day' | 'quarter' | 'semester' | 'year' | 'custom',
+      status: subscription.status as 'active' | 'canceled' | 'expired' | 'paused'
+    };
+  } catch (error) {
+    console.error('Error in fetchSubscription:', error);
+    return null;
+  }
+}
+
 // Fonction pour récupérer toutes les souscriptions
 export async function fetchSubscriptions(): Promise<Subscription[]> {
   try {
@@ -128,6 +226,38 @@ export async function fetchSubscriptions(): Promise<Subscription[]> {
   } catch (error) {
     console.error('Error in fetchSubscriptions:', error);
     return [];
+  }
+}
+
+// Update subscription status
+export async function updateSubscriptionStatus(id: string, status: SubscriptionStatus): Promise<{ success: boolean; error?: string }> {
+  try {
+    const tablesExist = await checkSubscriptionTablesExist();
+    
+    if (!tablesExist) {
+      console.log('Subscription tables do not exist, returning mock success');
+      return { success: true };
+    }
+    
+    const now = new Date().toISOString();
+    
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({ 
+        status,
+        updated_at: now
+      })
+      .eq('id', id);
+      
+    if (error) {
+      console.error('Error updating subscription status:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateSubscriptionStatus:', error);
+    return { success: false, error: 'Une erreur inattendue est survenue' };
   }
 }
 
