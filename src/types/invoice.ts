@@ -1,4 +1,3 @@
-
 export interface InvoiceNumberingConfig {
   prefix: string;
   suffix?: string;
@@ -149,3 +148,11 @@ export interface Invoice {
 }
 
 export type Status = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+
+export interface SignatureData {
+  id: string;
+  name: string;
+  dataUrl: string;
+  created_at?: string;
+  user_id?: string;
+}

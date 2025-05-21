@@ -1,3 +1,4 @@
+
 // src/components/products/ProductForm.tsx
 import React, { useState, useEffect } from "react";
 import {
@@ -13,16 +14,21 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createProduct, updateProduct, getCategories, Product, ProductCategory } from "@/services/productService";
+import { createProduct, updateProduct, getCategories, ProductCategory } from "@/services/productService";
+import { Product } from "@/types/product";
 
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: () => void;
+  onUpdate: () => void;
   initialData?: Product;
+  product?: Product; // Add for backward compatibility
 }
 
-export function ProductForm({ open, onOpenChange, onSave, initialData }: ProductFormProps) {
+export function ProductForm({ open, onOpenChange, onUpdate, initialData, product }: ProductFormProps) {
+  // Use product prop for backward compatibility
+  const productData = product || initialData;
+  
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: "",
@@ -32,6 +38,10 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
     sku: "",
     tax_rate: 0,
     active: true,
+    product_type: "product" as "product" | "service" | null,
+    is_recurring: false,
+    recurring_interval: "month" as "day" | "week" | "month" | "year" | undefined,
+    recurring_interval_count: 1,
   });
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,15 +58,19 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
   }, []);
 
   useEffect(() => {
-    if (initialData) {
+    if (productData) {
       setFormData({
-        name: initialData.name,
-        description: initialData.description,
-        price: initialData.price.toString(),
-        category_id: initialData.category_id || "",
-        sku: initialData.sku || "",
-        tax_rate: initialData.tax_rate || 0,
-        active: initialData.active !== undefined ? initialData.active : true,
+        name: productData.name,
+        description: productData.description || "",
+        price: productData.price?.toString() || "0",
+        category_id: productData.category_id || "",
+        sku: productData.sku || "",
+        tax_rate: productData.tax_rate || 0,
+        active: productData.active !== undefined ? productData.active : true,
+        product_type: productData.product_type || "product",
+        is_recurring: productData.is_recurring || false,
+        recurring_interval: productData.recurring_interval || "month",
+        recurring_interval_count: productData.recurring_interval_count || 1,
       });
     } else {
       setFormData({
@@ -67,9 +81,13 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
         sku: "",
         tax_rate: 0,
         active: true,
+        product_type: "product",
+        is_recurring: false,
+        recurring_interval: "month",
+        recurring_interval_count: 1,
       });
     }
-  }, [initialData]);
+  }, [productData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -84,27 +102,31 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
     setFormData(prev => ({ ...prev, active: value }));
   };
 
+  const handleProductTypeChange = (value: string) => {
+    setFormData(prev => ({ ...prev, product_type: value as "product" | "service" | null }));
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
   
     // Convert price from string to number before saving
-    const productData = {
+    const productDataToSave = {
       ...formData,
-      price: parseFloat(formData.price as string),
+      price: parseFloat(formData.price),
     };
   
     try {
-      if (initialData) {
-        await updateProduct(initialData.id, productData);
+      if (productData) {
+        await updateProduct(productData.id, productDataToSave);
       } else {
-        await createProduct(productData);
+        await createProduct(productDataToSave);
       }
       
       toast({
         title: "Produit enregistré",
         description: "Les informations du produit ont été enregistrées avec succès.",
       });
-      onSave();
+      onUpdate();
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving product:", error);
@@ -120,7 +142,7 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{initialData ? "Modifier le produit" : "Nouveau produit"}</DialogTitle>
+          <DialogTitle>{productData ? "Modifier le produit" : "Nouveau produit"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
@@ -166,10 +188,24 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="product_type" className="text-right">
+                Type
+              </Label>
+              <Select onValueChange={handleProductTypeChange} value={formData.product_type || ""}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Sélectionner un type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="product">Produit</SelectItem>
+                  <SelectItem value="service">Service</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="category" className="text-right">
                 Catégorie
               </Label>
-              <Select onValueChange={handleSelectCategory} defaultValue={formData.category_id}>
+              <Select onValueChange={handleSelectCategory} value={formData.category_id}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Sélectionner une catégorie" />
                 </SelectTrigger>
@@ -228,7 +264,7 @@ export function ProductForm({ open, onOpenChange, onSave, initialData }: Product
               Annuler
             </Button>
             <Button type="submit">
-              {initialData ? "Mettre à jour" : "Enregistrer"}
+              {productData ? "Mettre à jour" : "Enregistrer"}
             </Button>
           </DialogFooter>
         </form>

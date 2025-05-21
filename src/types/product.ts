@@ -11,7 +11,7 @@ export interface Product {
   created_at?: string;
   updated_at?: string;
   active?: boolean;
-  // Additional fields that might be used in the application
+  // Additional fields used in the application
   price_cents?: number;
   currency?: string;
   is_recurring?: boolean;

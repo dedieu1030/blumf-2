@@ -1,18 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
-
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category_id?: string;
-  sku?: string;
-  tax_rate?: number;
-  active?: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
+import { formatCurrency } from "@/lib/utils";
+import { Product } from "@/types/product";
 
 export interface ProductCategory {
   id: string;
@@ -22,7 +12,15 @@ export interface ProductCategory {
   updated_at?: string;
 }
 
-// Alias for backwards compatibility
+export { Product };
+
+// Format price for display
+export const formatPrice = (price_cents: number | undefined, currency: string = 'EUR'): string => {
+  if (!price_cents && price_cents !== 0) return '-';
+  return formatCurrency(price_cents / 100, currency);
+};
+
+// Function to get all product categories
 export const getCategories = async (): Promise<ProductCategory[]> => {
   // Implementation of getCategories
   try {
@@ -47,7 +45,7 @@ export const getCategories = async (): Promise<ProductCategory[]> => {
 export const fetchCategories = getCategories;
 
 // Function to fetch all products
-export async function fetchProducts(): Promise<Product[]> {
+export async function getProducts(): Promise<Product[]> {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -59,12 +57,20 @@ export async function fetchProducts(): Promise<Product[]> {
       return [];
     }
     
-    return data || [];
+    // Transform price to price_cents for compatibility
+    return (data || []).map(product => ({
+      ...product,
+      price_cents: product.price ? product.price * 100 : 0,
+      currency: 'EUR'
+    }));
   } catch (error) {
-    console.error('Error in fetchProducts:', error);
+    console.error('Error in getProducts:', error);
     return [];
   }
 }
+
+// Alias for backwards compatibility
+export const fetchProducts = getProducts;
 
 // Function to fetch a single product by ID
 export async function fetchProductById(id: string): Promise<Product | null> {
