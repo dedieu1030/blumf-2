@@ -35,7 +35,7 @@ export const fetchNotifications = async (): Promise<Notification[]> => {
       title: notification.title,
       message: notification.message,
       type: notification.type,
-      read: notification.read || false, // Use 'read' instead of 'is_read'
+      read: notification.read || false,
       link: notification.link,
       created_at: notification.created_at,
       reference_type: notification.reference_type,
@@ -53,7 +53,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<bo
   try {
     const { error } = await supabase
       .from("notifications")
-      .update({ read: true }) // Use 'read' instead of 'is_read'
+      .update({ read: true })
       .eq("id", notificationId);
 
     return !error;
@@ -68,7 +68,7 @@ export const markAllNotificationsAsRead = async (userId?: string): Promise<boole
   try {
     let query = supabase
       .from("notifications")
-      .update({ read: true }); // Use 'read' instead of 'is_read'
+      .update({ read: true });
 
     if (userId) {
       query = query.eq("user_id", userId);
@@ -92,7 +92,7 @@ export const createNotification = async (data: NotificationData, userId?: string
       title: data.title,
       message: data.message,
       type: data.type,
-      read: false, // Use 'read' instead of 'is_read'
+      read: false,
       link: data.link || null,
       created_at: new Date().toISOString(),
       metadata: data.metadata || null
@@ -115,9 +115,11 @@ export const createNotification = async (data: NotificationData, userId?: string
       title: newNotification.title,
       message: newNotification.message,
       type: newNotification.type,
-      read: newNotification.read || false, // Use 'read' instead of 'is_read' 
+      read: newNotification.read || false,
       link: newNotification.link,
       created_at: newNotification.created_at,
+      reference_type: newNotification.reference_type,
+      reference_id: newNotification.reference_id,
       metadata: newNotification.metadata
     };
   } catch (error) {

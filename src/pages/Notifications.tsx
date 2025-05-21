@@ -1,28 +1,27 @@
 
+import React, { useState } from 'react';
 import { Header } from "@/components/Header";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
-export default function Notifications() {
+const Notifications = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { t } = useTranslation();
+  const [panelOpen, setPanelOpen] = useState(true);
 
   return (
     <>
       <Header 
-        title={t('notifications')} 
-        description={t('manageNotifications')} 
+        title="Notifications" 
+        description="Gérez vos notifications"
         onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
       />
-      
-      <NotificationsPanel />
-      
+      <NotificationsPanel open={panelOpen} onOpenChange={setPanelOpen} />
       <MobileNavigation 
         isOpen={isMobileMenuOpen} 
         onOpenChange={setIsMobileMenuOpen}
       />
     </>
   );
-}
+};
+
+export default Notifications;

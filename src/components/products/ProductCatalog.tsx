@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +27,7 @@ import {
   Check, 
   X 
 } from "lucide-react";
-import { fetchProducts, formatPrice, Product } from "@/services/productService";
+import { formatPrice, getProducts, Product } from "@/services/productService";
 import { ProductForm } from "./ProductForm";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
@@ -51,7 +50,7 @@ export function ProductCatalog() {
   useEffect(() => {
     const loadProducts = async () => {
       setIsLoading(true);
-      const data = await fetchProducts(showInactive);
+      const data = await getProducts();
       setProducts(data);
       setFilteredProducts(data);
       setIsLoading(false);
@@ -95,7 +94,7 @@ export function ProductCatalog() {
 
   const handleProductUpdated = () => {
     // Refresh data
-    fetchProducts(showInactive).then(data => {
+    getProducts().then(data => {
       setProducts(data);
       setFilteredProducts(data);
     });
@@ -115,7 +114,7 @@ export function ProductCatalog() {
   const getRecurringBadge = (product: Product) => {
     if (!product.is_recurring) return null;
     
-    const intervalMap = {
+    const intervalMap: Record<string, string> = {
       day: product.recurring_interval_count === 1 ? 'jour' : 'jours',
       week: product.recurring_interval_count === 1 ? 'semaine' : 'semaines',
       month: 'mois',
@@ -213,72 +212,80 @@ export function ProductCatalog() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
-                <TableRow key={product.id} className={!product.active ? "opacity-60" : ""}>
-                  <TableCell className="font-medium">
-                    <div>
-                      {product.name}
-                      {getRecurringBadge(product)}
-                      {!product.active && (
-                        <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-500">
-                          Inactif
-                        </Badge>
-                      )}
-                    </div>
-                    {product.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-1">
-                        {product.description}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {product.product_type === 'product' ? 'Produit' : 
-                     product.product_type === 'service' ? 'Service' : 
-                     'Non défini'}
-                  </TableCell>
-                  <TableCell>{formatPrice(product.price_cents, product.currency)}</TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {product.tax_rate !== null ? `${product.tax_rate}%` : '-'}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {product.active ? (
-                      <div className="flex items-center">
-                        <Check className="h-4 w-4 text-green-500 mr-1" />
-                        <span>Actif</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <X className="h-4 w-4 text-gray-500 mr-1" />
-                        <span>Inactif</span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewProduct(product)}>
-                          <Eye className="h-4 w-4 mr-2" /> Voir
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditProduct(product)}>
-                          <Edit className="h-4 w-4 mr-2" /> Modifier
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteProduct(product)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" /> Supprimer
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <p>Aucun produit trouvé</p>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredProducts.map((product) => (
+                  <TableRow key={product.id} className={!product.active ? "opacity-60" : ""}>
+                    <TableCell className="font-medium">
+                      <div>
+                        {product.name}
+                        {getRecurringBadge(product)}
+                        {!product.active && (
+                          <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-500">
+                            Inactif
+                          </Badge>
+                        )}
+                      </div>
+                      {product.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {product.description}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {product.product_type === 'product' ? 'Produit' : 
+                       product.product_type === 'service' ? 'Service' : 
+                       'Non défini'}
+                    </TableCell>
+                    <TableCell>{formatPrice(product.price_cents, product.currency)}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {product.tax_rate !== null ? `${product.tax_rate}%` : '-'}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {product.active ? (
+                        <div className="flex items-center">
+                          <Check className="h-4 w-4 text-green-500 mr-1" />
+                          <span>Actif</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center">
+                          <X className="h-4 w-4 text-gray-500 mr-1" />
+                          <span>Inactif</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewProduct(product)}>
+                            <Eye className="h-4 w-4 mr-2" /> Voir
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                            <Edit className="h-4 w-4 mr-2" /> Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteProduct(product)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
@@ -343,7 +350,7 @@ export function ProductCatalog() {
                   <h3 className="text-sm font-medium text-muted-foreground">Statut</h3>
                   <p>{selectedProduct.active ? 'Actif' : 'Inactif'}</p>
                 </div>
-                {selectedProduct.is_recurring && (
+                {selectedProduct.is_recurring && selectedProduct.recurring_interval_count && (
                   <div className="col-span-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Facturation récurrente</h3>
                     <p>
@@ -371,7 +378,7 @@ export function ProductCatalog() {
               
               <div className="pt-2">
                 <h3 className="text-sm font-medium text-muted-foreground">Créé le</h3>
-                <p>{new Date(selectedProduct.created_at).toLocaleDateString()}</p>
+                <p>{selectedProduct.created_at ? new Date(selectedProduct.created_at).toLocaleDateString() : '-'}</p>
               </div>
             </div>
             <AlertDialogFooter>

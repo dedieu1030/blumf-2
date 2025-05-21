@@ -9,18 +9,18 @@ import { Invoice, Status } from '@/types/invoice';
 
 export interface InvoiceMobileCardProps {
   invoice: Invoice;
-  onViewClick: () => void;
-  onEditClick: () => void;
-  onDeleteClick: () => void;
-  onStatusChange: (newStatus: Status) => void;
+  onStatusChange?: () => void;
+  onViewClick?: () => void;
+  onEditClick?: () => void;
+  onDeleteClick?: () => void;
 }
 
 export function InvoiceMobileCard({ 
   invoice, 
-  onViewClick, 
-  onEditClick, 
-  onDeleteClick,
-  onStatusChange 
+  onStatusChange,
+  onViewClick = () => {}, 
+  onEditClick = () => {}, 
+  onDeleteClick = () => {}
 }: InvoiceMobileCardProps) {
   
   return (
@@ -31,7 +31,7 @@ export function InvoiceMobileCard({
             <div className="font-medium">{invoice.invoice_number}</div>
             <div className="text-sm text-gray-500">{invoice.client?.client_name || invoice.client_name || 'N/A'}</div>
           </div>
-          <InvoiceStatus status={invoice.status} />
+          <InvoiceStatus status={invoice.status} onStatusChange={onStatusChange} />
         </div>
         
         <div className="flex justify-between mt-2">

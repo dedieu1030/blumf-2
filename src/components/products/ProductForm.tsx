@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -19,7 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchCategories, createProduct, updateProduct, Product } from "@/services/productService";
+import {
+  createProduct,
+  updateProduct,
+  getCategories,
+  Product
+} from "@/services/productService";
 import { availableCurrencies } from "@/services/invoiceSettingsService";
 import { TaxRateSelector } from "@/components/settings/TaxRateSelector";
 
@@ -50,7 +54,7 @@ export function ProductForm({ open, onOpenChange, product, onUpdate }: ProductFo
   // Load categories
   useEffect(() => {
     const loadCategories = async () => {
-      const data = await fetchCategories();
+      const data = await getCategories();
       setCategories(data);
     };
     
@@ -107,33 +111,23 @@ export function ProductForm({ open, onOpenChange, product, onUpdate }: ProductFo
       }
       
       // Convert price to cents (integer)
-      const price = priceCents ? parseInt(priceCents) : 0;
+      const price_cents = priceCents ? parseInt(priceCents) : 0;
       
       // Prepare product data
-      const productData: Partial<Product> = {
+      const productData = {
         name,
-        description: description || null,
-        price_cents: price,
+        description: description || undefined,
+        price_cents,
+        price: (price_cents / 100).toFixed(2),
         currency,
         tax_rate: taxRate,
         is_recurring: isRecurring,
         product_type: productType as 'product' | 'service' | null,
         active,
+        recurring_interval: isRecurring ? (recurringInterval as 'day' | 'week' | 'month' | 'year') : undefined,
+        recurring_interval_count: isRecurring && recurringIntervalCount ? parseInt(recurringIntervalCount) : undefined,
+        category_id: categoryId && categoryId !== "none" ? categoryId : undefined
       };
-      
-      // Add recurring fields if applicable
-      if (isRecurring) {
-        productData.recurring_interval = recurringInterval as 'day' | 'week' | 'month' | 'year';
-        productData.recurring_interval_count = recurringIntervalCount ? parseInt(recurringIntervalCount) : 1;
-      } else {
-        productData.recurring_interval = null;
-        productData.recurring_interval_count = null;
-      }
-      
-      // Save category relationship in metadata
-      if (categoryId && categoryId !== "none") {
-        productData.metadata = { category_id: categoryId };
-      }
       
       if (product) {
         // Update existing product

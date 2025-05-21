@@ -50,6 +50,7 @@ export const InvoiceList = ({
             key={invoice.id} 
             invoice={invoice} 
             onStatusChange={onInvoiceStatusChanged}
+            onViewClick={() => handleRowClick(invoice)}
           />
         ))}
       </div>
@@ -85,7 +86,6 @@ export const InvoiceList = ({
               <TableCell>
                 <InvoiceStatus 
                   status={invoice.status}
-                  invoiceId={invoice.id}
                   onStatusChange={onInvoiceStatusChanged}
                 />
               </TableCell>

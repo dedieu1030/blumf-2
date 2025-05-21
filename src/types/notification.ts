@@ -4,7 +4,7 @@ export interface Notification {
   type: 'payment_received' | 'invoice_created' | 'invoice_due_soon' | 'invoice_overdue' | 'other' | string;
   title: string;
   message: string;
-  read: boolean; // Using 'read' property consistently instead of 'is_read'
+  read: boolean;
   reference_type?: string;
   reference_id?: string;
   metadata?: Record<string, any>;

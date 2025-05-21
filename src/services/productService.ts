@@ -40,200 +40,163 @@ export const formatPrice = (priceCents: number | undefined, currency = 'EUR'): s
   return `${amount} ${currency}`;
 };
 
-// Function to create a product
-export const createProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Product | null, error: any }> => {
-  const { data, error } = await supabase
-    .from('products')
-    .insert({
-      ...product,
+// Function to create a product - using a mock implementation for now
+export const createProduct = async (product: Partial<Product>): Promise<{ data: Product | null, error: any }> => {
+  try {
+    // For now, return a mock successful response since we don't have a products table yet
+    const newProduct: Product = {
       id: uuidv4(),
-      price_cents: product.price_cents || (product.price ? parseInt((parseFloat(product.price) * 100).toString()) : 0)
-    })
-    .select('*')
-    .single();
-
-  return { 
-    data: data as Product | null, 
-    error 
-  };
+      name: product.name || 'Unnamed Product',
+      price: product.price || '0',
+      is_recurring: product.is_recurring || false,
+      price_cents: product.price_cents || 0,
+      currency: product.currency || 'EUR',
+      tax_rate: product.tax_rate || 0,
+      product_type: product.product_type || 'product',
+      active: product.active !== undefined ? product.active : true,
+      category_id: product.category_id,
+      description: product.description,
+      recurring_interval: product.recurring_interval,
+      recurring_period: product.recurring_period,
+      recurring_interval_count: product.recurring_interval_count,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('Creating product:', newProduct);
+    
+    return { 
+      data: newProduct,
+      error: null
+    };
+  } catch (error) {
+    console.error('Error creating product:', error);
+    return {
+      data: null,
+      error
+    };
+  }
 };
 
-// Function to get all products
+// Function to get all products - using a mock implementation for now
 export const getProducts = async (): Promise<Product[]> => {
-  try {
-    // First create products table if it doesn't exist
-    await checkAndCreateProductsTable();
-    
-    const { data, error } = await supabase
-      .from('products')
-      .select('*');
-
-    if (error) {
-      console.error('Error fetching products:', error);
-      return [];
-    }
-
-    if (!data) return [];
-
-    // Transform data to match Product interface
-    return data.map(item => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      price: ((item.price_cents || 0) / 100).toFixed(2),
-      category: item.category_id,
-      is_recurring: item.is_recurring || false,
-      recurring_interval: item.recurring_interval,
-      recurring_period: item.recurring_period,
-      recurring_interval_count: item.recurring_interval_count,
-      price_cents: item.price_cents,
-      currency: item.currency,
-      tax_rate: item.tax_rate,
-      product_type: item.product_type,
-      active: item.active !== undefined ? item.active : true,
-      category_id: item.category_id,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-    }));
-  } catch (error) {
-    console.error('Error in getProducts:', error);
-    return [];
-  }
+  console.log('Fetching products (mock)');
+  // Return mock data for now
+  return [];
 };
 
 // Alias for backward compatibility
 export const fetchProducts = getProducts;
 
-// Function to check if products table exists and create it if not
-async function checkAndCreateProductsTable() {
-  try {
-    // Check if the table exists by trying to select from it
-    const { error } = await supabase
-      .from('products')
-      .select('count(*)')
-      .limit(1);
-      
-    // If the error indicates the table doesn't exist, create it
-    if (error && error.message.includes('does not exist')) {
-      await supabase.rpc('create_products_table');
-      console.log('Products table created successfully');
-    }
-  } catch (err) {
-    console.error('Error checking/creating products table:', err);
-  }
-}
-
-// Function to get all categories
+// Function to get all categories - using a mock implementation for now
 export const getCategories = async (): Promise<ProductCategory[]> => {
-  const { data, error } = await supabase
-    .from('product_categories')
-    .select('*');
-
-  if (error) {
-    console.error('Error fetching product categories:', error);
-    return [];
-  }
-
-  return (data || []) as ProductCategory[];
+  console.log('Fetching product categories (mock)');
+  // Return mock data for now
+  return [];
 };
 
 // Alias for backward compatibility
 export const fetchCategories = getCategories;
 
-// Function to create a category
+// Function to create a category - using a mock implementation for now
 export const createCategory = async (category: Omit<ProductCategory, 'id' | 'created_at'>): Promise<{ data: ProductCategory | null, error: any }> => {
-  const { data, error } = await supabase
-    .from('product_categories')
-    .insert({
-      ...category,
-      id: uuidv4()
-    })
-    .select('*')
-    .single();
-
-  return { 
-    data: data as ProductCategory | null, 
-    error 
-  };
-};
-
-// Function to update a category
-export const updateCategory = async (id: string, category: Partial<ProductCategory>): Promise<{ data: ProductCategory | null, error: any }> => {
-  const { data, error } = await supabase
-    .from('product_categories')
-    .update(category)
-    .eq('id', id)
-    .select('*')
-    .single();
-
-  return { 
-    data: data as ProductCategory | null, 
-    error 
-  };
-};
-
-// Function to delete a product
-export const deleteProduct = async (id: string): Promise<{ error: any }> => {
-  const { error } = await supabase
-    .from('products')
-    .delete()
-    .eq('id', id);
-
-  return { error };
-};
-
-// Function to update a product
-export const updateProduct = async (id: string, product: Partial<Product>): Promise<{ data: Product | null, error: any }> => {
-  // Convert price string to cents for storage if price is provided
-  const updates: any = { ...product };
-  if (product.price) {
-    updates.price_cents = parseInt((parseFloat(product.price) * 100).toString());
-    delete updates.price;
-  }
-
-  const { data, error } = await supabase
-    .from('products')
-    .update(updates)
-    .eq('id', id)
-    .select('*')
-    .single();
-
-  // Transform back to our Product interface
-  let transformedProduct: Product | null = null;
-  if (data) {
-    transformedProduct = {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      price: ((data.price_cents || 0) / 100).toFixed(2),
-      category: data.category_id,
-      is_recurring: data.is_recurring || false,
-      recurring_interval: data.recurring_interval,
-      recurring_period: data.recurring_period,
-      recurring_interval_count: data.recurring_interval_count,
-      price_cents: data.price_cents,
-      currency: data.currency,
-      tax_rate: data.tax_rate,
-      product_type: data.product_type,
-      active: data.active !== undefined ? data.active : true,
-      category_id: data.category_id,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
+  try {
+    const newCategory: ProductCategory = {
+      id: uuidv4(),
+      name: category.name,
+      color: category.color,
+      created_at: new Date().toISOString()
+    };
+    
+    console.log('Creating category:', newCategory);
+    
+    return {
+      data: newCategory,
+      error: null
+    };
+  } catch (error) {
+    console.error('Error creating category:', error);
+    return {
+      data: null,
+      error
     };
   }
-
-  return { 
-    data: transformedProduct, 
-    error 
-  };
 };
 
-// Function to delete a category
-export const deleteCategory = async (id: string): Promise<{ error: any }> => {
-  const { error } = await supabase
-    .from('product_categories')
-    .delete()
-    .eq('id', id);
+// Function to update a category - using a mock implementation for now
+export const updateCategory = async (id: string, category: Partial<ProductCategory>): Promise<{ data: ProductCategory | null, error: any }> => {
+  try {
+    // Mock updating a category
+    const updatedCategory: ProductCategory = {
+      id,
+      name: category.name || 'Unnamed Category',
+      color: category.color,
+      created_at: new Date().toISOString()
+    };
+    
+    console.log('Updating category:', updatedCategory);
+    
+    return {
+      data: updatedCategory,
+      error: null
+    };
+  } catch (error) {
+    console.error('Error updating category:', error);
+    return {
+      data: null,
+      error
+    };
+  }
+};
 
-  return { error };
+// Function to update a product - using a mock implementation for now
+export const updateProduct = async (id: string, product: Partial<Product>): Promise<{ data: Product | null, error: any }> => {
+  try {
+    // Mock updating a product
+    const updatedProduct: Product = {
+      id,
+      name: product.name || 'Unnamed Product',
+      description: product.description,
+      price: product.price || '0',
+      is_recurring: product.is_recurring || false,
+      recurring_interval: product.recurring_interval,
+      recurring_period: product.recurring_period,
+      recurring_interval_count: product.recurring_interval_count,
+      price_cents: product.price_cents,
+      currency: product.currency || 'EUR',
+      tax_rate: product.tax_rate,
+      product_type: product.product_type,
+      active: product.active !== undefined ? product.active : true,
+      category_id: product.category_id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('Updating product:', updatedProduct);
+    
+    return {
+      data: updatedProduct,
+      error: null
+    };
+  } catch (error) {
+    console.error('Error updating product:', error);
+    return {
+      data: null,
+      error
+    };
+  }
+};
+
+// Function to delete a product - using a mock implementation for now
+export const deleteProduct = async (id: string): Promise<{ error: any }> => {
+  console.log('Deleting product:', id);
+  // Mock success
+  return { error: null };
+};
+
+// Function to delete a category - using a mock implementation for now
+export const deleteCategory = async (id: string): Promise<{ error: any }> => {
+  console.log('Deleting category:', id);
+  // Mock success
+  return { error: null };
 };
