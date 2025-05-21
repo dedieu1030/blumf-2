@@ -7,7 +7,7 @@ import { Status } from "@/types/invoice";
 interface InvoiceStatusProps {
   status: Status;
   className?: string;
-  onStatusChange?: () => void; // Added this prop
+  onStatusChange?: () => void; // Ensuring this prop is defined
 }
 
 export function InvoiceStatus({ status, className, onStatusChange }: InvoiceStatusProps) {
@@ -54,7 +54,7 @@ export function InvoiceStatus({ status, className, onStatusChange }: InvoiceStat
     <Badge 
       variant="outline" 
       className={cn("rounded-md font-normal", statusClassName, className)}
-      onClick={onStatusChange} // Use the prop
+      onClick={onStatusChange} // Using the prop
     >
       {label}
     </Badge>

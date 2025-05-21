@@ -69,9 +69,33 @@ export async function checkProductTables() {
   }
 }
 
+// Function to check if subscriptions table exists
+export async function checkSubscriptionTables() {
+  try {
+    // Check if the tables exist
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('count(*)', { count: 'exact', head: true });
+    
+    if (error && error.code === '42P01') {
+      console.log('Subscription tables do not exist yet, will be handled by backend services');
+    } else {
+      console.log('Subscription tables exist or another error occurred');
+    }
+  } catch (err) {
+    console.error('Error checking subscription tables:', err);
+  }
+}
+
 // Initialize all required tables
 export function initializeTables() {
   checkAndCreateNotificationsTable();
   checkReminderTables();
   checkProductTables();
+  checkSubscriptionTables();
+}
+
+// Create a helper for mocking database records when tables don't exist
+export function getMockResponse<T>(mockData: T): T {
+  return mockData;
 }

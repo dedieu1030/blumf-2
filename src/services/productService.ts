@@ -13,8 +13,14 @@ export interface Product {
   category_name?: string;
   is_recurring: boolean;
   recurring_interval?: string;
+  recurring_interval_count?: number;
   created_at?: string;
   updated_at?: string;
+  // Additional fields needed by components
+  product_type?: 'product' | 'service' | string | null;
+  currency?: string;
+  tax_rate?: number | null;
+  active?: boolean;
 }
 
 // Define Category type
@@ -22,12 +28,30 @@ export interface ProductCategory {
   id: string;
   name: string;
   description?: string;
+  color?: string; // Add color property
   created_at?: string;
   updated_at?: string;
 }
 
+// Helper function to format price
+export const formatPrice = (price_cents?: number | null, currency: string = 'EUR'): string => {
+  if (!price_cents && price_cents !== 0) return '—';
+  const amount = (price_cents / 100).toFixed(2);
+  
+  const currencySymbol = {
+    'EUR': '€',
+    'USD': '$',
+    'GBP': '£',
+  }[currency] || currency;
+  
+  return `${amount} ${currencySymbol}`;
+};
+
+// Fetch all products - alias for backward compatibility
+export const getProducts = fetchProducts;
+
 // Fetch all products
-export const fetchProducts = async (): Promise<Product[]> => {
+export async function fetchProducts(): Promise<Product[]> {
   try {
     // Attempt to fetch from actual table if it exists
     try {
@@ -51,8 +75,13 @@ export const fetchProducts = async (): Promise<Product[]> => {
         category_name: item.product_categories?.name,
         is_recurring: item.is_recurring || false,
         recurring_interval: item.recurring_interval,
+        recurring_interval_count: item.recurring_interval_count || 1,
         created_at: item.created_at,
-        updated_at: item.updated_at
+        updated_at: item.updated_at,
+        product_type: item.product_type || 'service',
+        currency: item.currency || 'EUR',
+        tax_rate: item.tax_rate || 0,
+        active: item.active !== undefined ? item.active : true,
       }));
     } catch (err) {
       console.error('Error in product fetch:', err);
@@ -62,10 +91,13 @@ export const fetchProducts = async (): Promise<Product[]> => {
     console.error('Unexpected error in product fetch:', error);
     return getMockProducts();
   }
-};
+}
+
+// Alias for backward compatibility
+export const getCategories = fetchCategories;
 
 // Fetch product categories
-export const fetchCategories = async (): Promise<ProductCategory[]> => {
+export async function fetchCategories(): Promise<ProductCategory[]> {
   try {
     // Attempt to fetch from actual table if it exists
     try {
@@ -87,14 +119,18 @@ export const fetchCategories = async (): Promise<ProductCategory[]> => {
     console.error('Unexpected error in category fetch:', error);
     return getMockCategories();
   }
-};
+}
 
 // Create a new product
-export const createProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<Product> => {
+export const createProduct = async (product: Partial<Product>): Promise<Product> => {
   try {
+    if (!product.name) {
+      throw new Error("Product name is required");
+    }
+    
     const priceCents = typeof product.price === 'string'
       ? Math.round(parseFloat(product.price) * 100)
-      : Math.round(product.price * 100);
+      : product.price ? Math.round(product.price * 100) : 0;
 
     const newProduct = {
       id: uuidv4(),
@@ -104,6 +140,11 @@ export const createProduct = async (product: Omit<Product, 'id' | 'created_at' |
       category_id: product.category_id || null,
       is_recurring: product.is_recurring || false,
       recurring_interval: product.recurring_interval || null,
+      recurring_interval_count: product.recurring_interval_count || 1,
+      product_type: product.product_type || 'service',
+      currency: product.currency || 'EUR',
+      tax_rate: product.tax_rate || 0,
+      active: product.active !== undefined ? product.active : true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -134,6 +175,11 @@ export const createProduct = async (product: Omit<Product, 'id' | 'created_at' |
         category_id: data.category_id,
         is_recurring: data.is_recurring,
         recurring_interval: data.recurring_interval,
+        recurring_interval_count: data.recurring_interval_count,
+        product_type: data.product_type,
+        currency: data.currency,
+        tax_rate: data.tax_rate,
+        active: data.active,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -160,6 +206,11 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
       category_id: updates.category_id,
       is_recurring: updates.is_recurring,
       recurring_interval: updates.recurring_interval,
+      recurring_interval_count: updates.recurring_interval_count,
+      product_type: updates.product_type,
+      currency: updates.currency,
+      tax_rate: updates.tax_rate,
+      active: updates.active,
       updated_at: new Date().toISOString()
     };
 
@@ -198,6 +249,11 @@ export const updateProduct = async (id: string, updates: Partial<Product>): Prom
         category_id: data.category_id,
         is_recurring: data.is_recurring,
         recurring_interval: data.recurring_interval,
+        recurring_interval_count: data.recurring_interval_count,
+        product_type: data.product_type,
+        currency: data.currency,
+        tax_rate: data.tax_rate,
+        active: data.active,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -250,6 +306,7 @@ export const createCategory = async (category: Omit<ProductCategory, 'id' | 'cre
       id: uuidv4(),
       name: category.name,
       description: category.description || '',
+      color: category.color || '#6366F1',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -302,6 +359,7 @@ export const updateCategory = async (id: string, updates: Partial<ProductCategor
           id,
           name: updates.name || 'Unknown',
           description: updates.description,
+          color: updates.color,
           updated_at: updatedFields.updated_at
         };
       }
@@ -314,6 +372,7 @@ export const updateCategory = async (id: string, updates: Partial<ProductCategor
         id,
         name: updates.name || 'Unknown',
         description: updates.description,
+        color: updates.color,
         updated_at: updatedFields.updated_at
       };
     }
@@ -361,6 +420,10 @@ const getMockProducts = (): Product[] => {
       category_id: '1',
       category_name: 'Services juridiques',
       is_recurring: false,
+      product_type: 'service',
+      currency: 'EUR',
+      tax_rate: 20,
+      active: true,
       created_at: '2023-01-01T12:00:00Z',
       updated_at: '2023-01-01T12:00:00Z'
     },
@@ -373,6 +436,10 @@ const getMockProducts = (): Product[] => {
       category_id: '1',
       category_name: 'Services juridiques',
       is_recurring: false,
+      product_type: 'service',
+      currency: 'EUR',
+      tax_rate: 20,
+      active: true,
       created_at: '2023-01-02T12:00:00Z',
       updated_at: '2023-01-02T12:00:00Z'
     },
@@ -386,6 +453,11 @@ const getMockProducts = (): Product[] => {
       category_name: 'Abonnements',
       is_recurring: true,
       recurring_interval: 'month',
+      recurring_interval_count: 1,
+      product_type: 'service',
+      currency: 'EUR',
+      tax_rate: 20,
+      active: true,
       created_at: '2023-01-03T12:00:00Z',
       updated_at: '2023-01-03T12:00:00Z'
     }
@@ -398,6 +470,7 @@ const getMockCategories = (): ProductCategory[] => {
       id: '1',
       name: 'Services juridiques',
       description: 'Consultations et services juridiques divers',
+      color: '#4F46E5',
       created_at: '2023-01-01T10:00:00Z',
       updated_at: '2023-01-01T10:00:00Z'
     },
@@ -405,6 +478,7 @@ const getMockCategories = (): ProductCategory[] => {
       id: '2',
       name: 'Abonnements',
       description: 'Services récurrents et abonnements',
+      color: '#10B981',
       created_at: '2023-01-01T10:30:00Z',
       updated_at: '2023-01-01T10:30:00Z'
     },
@@ -412,6 +486,7 @@ const getMockCategories = (): ProductCategory[] => {
       id: '3',
       name: 'Documents',
       description: 'Rédaction et validation de documents',
+      color: '#F59E0B',
       created_at: '2023-01-01T11:00:00Z',
       updated_at: '2023-01-01T11:00:00Z'
     }

@@ -1,8 +1,10 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Product } from "./productService";
 import { addDays, addWeeks, addMonths, addYears, format } from "date-fns";
 import { Client } from "@/components/ClientSelector";
+import { getMockSubscriptions, generateMockSubscription } from "./subscriptionMockService";
 
 export interface Subscription {
   id: string;
@@ -57,84 +59,94 @@ function validateStatus(status: string | null): 'active' | 'paused' | 'cancelled
 
 export async function fetchSubscriptions() {
   try {
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select(`
-        *,
-        clients(name, email)
-      `)
-      .order('next_invoice_date', { ascending: true });
-    
-    if (error) throw error;
-    
-    return data.map(subscription => {
-      // Make sure clients data exists and has the expected properties
-      const clientData = subscription.clients || {};
-      const clientName = clientData && typeof clientData === 'object' && 'name' in clientData ? clientData.name : null;
-      const clientEmail = clientData && typeof clientData === 'object' && 'email' in clientData ? clientData.email : null;
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select(`
+          *,
+          clients(name, email)
+        `)
+        .order('next_invoice_date', { ascending: true });
       
-      return {
-        ...subscription,
-        // Safely access client data with fallbacks
-        client_name: clientName ?? 'Unknown Client',
-        client_email: clientEmail ?? '',
-        recurring_interval: validateRecurringInterval(subscription.recurring_interval),
-        status: validateStatus(subscription.status)
-      };
-    }) as Subscription[];
+      if (error) throw error;
+      
+      return data.map((subscription: any) => {
+        // Make sure clients data exists and has the expected properties
+        const clientData = subscription.clients || {};
+        const clientName = clientData && typeof clientData === 'object' && 'name' in clientData ? clientData.name : null;
+        const clientEmail = clientData && typeof clientData === 'object' && 'email' in clientData ? clientData.email : null;
+        
+        return {
+          ...subscription,
+          // Safely access client data with fallbacks
+          client_name: clientName ?? 'Unknown Client',
+          client_email: clientEmail ?? '',
+          recurring_interval: validateRecurringInterval(subscription.recurring_interval),
+          status: validateStatus(subscription.status)
+        };
+      }) as Subscription[];
+    } catch (error) {
+      console.error('Error fetching subscriptions, using mock data:', error);
+      return getMockSubscriptions();
+    }
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
     toast.error('Erreur lors du chargement des abonnements');
-    return [];
+    return getMockSubscriptions();
   }
 }
 
 export async function fetchSubscription(id: string) {
   try {
-    const { data: subscription, error: subscriptionError } = await supabase
-      .from('subscriptions')
-      .select(`
-        *,
-        clients(name, email)
-      `)
-      .eq('id', id)
-      .single();
-    
-    if (subscriptionError) throw subscriptionError;
-    
-    const { data: items, error: itemsError } = await supabase
-      .from('subscription_items')
-      .select(`
-        *,
-        stripe_products(*)
-      `)
-      .eq('subscription_id', id);
-    
-    if (itemsError) throw itemsError;
-    
-    // Safely handle client data and transform stripe products to our Product format
-    const clientData = subscription.clients || {};
-    const clientName = clientData && typeof clientData === 'object' && 'name' in clientData ? clientData.name : null;
-    const clientEmail = clientData && typeof clientData === 'object' && 'email' in clientData ? clientData.email : null;
-    
-    // Fixed syntax error here: properly format the map operation
-    const transformedItems = items.map(item => ({
-      ...item,
-      product: item.stripe_products ? {
-        ...item.stripe_products,
-        is_recurring: Boolean(item.stripe_products.recurring_interval) // Add the missing property
-      } : undefined
-    }));
-    
-    // Cast as unknown first then as Subscription to avoid TypeScript errors
-    return {
-      ...subscription,
-      client_name: clientName ?? 'Unknown Client',
-      client_email: clientEmail ?? '',
-      recurring_interval: validateRecurringInterval(subscription.recurring_interval),
-      status: validateStatus(subscription.status),
-      items: transformedItems
-    } as unknown as Subscription;
+    try {
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .select(`
+          *,
+          clients(name, email)
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (subscriptionError) throw subscriptionError;
+      
+      const { data: items, error: itemsError } = await supabase
+        .from('subscription_items')
+        .select(`
+          *,
+          stripe_products(*)
+        `)
+        .eq('subscription_id', id);
+      
+      if (itemsError) throw itemsError;
+      
+      // Safely handle client data and transform stripe products to our Product format
+      const clientData = subscription.clients || {};
+      const clientName = clientData && typeof clientData === 'object' && 'name' in clientData ? clientData.name : null;
+      const clientEmail = clientData && typeof clientData === 'object' && 'email' in clientData ? clientData.email : null;
+      
+      // Fixed syntax error here: properly format the map operation
+      const transformedItems = items.map((item: any) => ({
+        ...item,
+        product: item.stripe_products ? {
+          ...item.stripe_products,
+          is_recurring: Boolean(item.stripe_products.recurring_interval) // Add the missing property
+        } : undefined
+      }));
+      
+      // Cast as unknown first then as Subscription to avoid TypeScript errors
+      return {
+        ...subscription,
+        client_name: clientName ?? 'Unknown Client',
+        client_email: clientEmail ?? '',
+        recurring_interval: validateRecurringInterval(subscription.recurring_interval),
+        status: validateStatus(subscription.status),
+        items: transformedItems
+      } as unknown as Subscription;
+    } catch (error) {
+      console.error('Error fetching subscription, using mock data:', error);
+      return getMockSubscriptions()[0];
+    }
   } catch (error) {
     console.error('Error fetching subscription:', error);
     toast.error('Erreur lors du chargement de l\'abonnement');
