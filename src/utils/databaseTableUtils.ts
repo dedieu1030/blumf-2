@@ -1,46 +1,49 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Helper function to check if a table exists in the database
- * @param tableName The name of the table to check
- * @returns Promise<boolean> True if the table exists, false otherwise
+ * Check if a table exists in the Supabase database
  */
 export async function checkTableExists(tableName: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from(tableName)
-      .select('*')
-      .limit(1);
+    // Use system tables to check if the table exists
+    const { data, error } = await supabase
+      .from('pg_tables')
+      .select('tablename')
+      .eq('schemaname', 'public')
+      .eq('tablename', tableName);
     
     if (error) {
-      // If the error message indicates the table doesn't exist
-      if (error.message.includes('does not exist') || 
-          error.message.includes('relation') || 
-          error.message.includes('not found')) {
-        return false;
-      }
-      
-      // For other types of errors, log them but assume the table might exist
-      console.warn(`Error checking if table ${tableName} exists:`, error);
+      console.error(`Error checking if ${tableName} table exists:`, error);
+      return false;
     }
     
-    return true;
+    return (data?.length || 0) > 0;
   } catch (error) {
-    console.error(`Error checking if table ${tableName} exists:`, error);
+    console.error(`Error in checkTableExists for ${tableName}:`, error);
     return false;
   }
 }
 
 /**
- * Creates a mock object with fallbacks for common database errors
- * @param mockData The mock data to use as fallback
- * @returns An object with database-like properties and the mock data
+ * Check if RPC function exists
  */
-export function createMockQueryResult<T>(mockData: T[]) {
-  return {
-    data: mockData,
-    count: mockData.length,
-    error: null
-  };
+export async function checkRpcFunctionExists(functionName: string): Promise<boolean> {
+  try {
+    // Try to execute a small query that should return success if the function exists
+    const { data, error } = await supabase.rpc('pg_function_exists', {
+      function_name: functionName,
+      schema_name: 'public'
+    });
+    
+    if (error) {
+      console.error(`Error checking if RPC function ${functionName} exists:`, error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (error) {
+    console.error(`Error in checkRpcFunctionExists for ${functionName}:`, error);
+    return false;
+  }
 }

@@ -1,75 +1,45 @@
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { SendIcon } from 'lucide-react';
-import { toast } from 'sonner';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Mail } from "lucide-react";
+import { toast } from "sonner";
 import { sendReminderForInvoice } from '@/services/reminderService';
 
-interface InvoiceReminderProps {
+export interface InvoiceReminderProps {
   invoiceId: string;
-  onSuccess?: () => void;
 }
 
-export function InvoiceReminder({ invoiceId, onSuccess }: InvoiceReminderProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [isSending, setIsSending] = React.useState(false);
-
+export function InvoiceReminder({ invoiceId }: InvoiceReminderProps) {
+  const [isSending, setIsSending] = useState(false);
+  
   const handleSendReminder = async () => {
-    setIsSending(true);
-    
     try {
+      setIsSending(true);
       const result = await sendReminderForInvoice(invoiceId);
       
       if (result.success) {
         toast.success('Rappel envoyé avec succès');
-        if (onSuccess) {
-          onSuccess();
-        }
       } else {
-        // Use type-safe approach to check if error property exists
-        const errorMessage = 'error' in result ? result.error : "Une erreur est survenue";
-        toast.error(`Erreur lors de l'envoi du rappel: ${errorMessage}`);
+        toast.error(result.error || 'Erreur lors de l\'envoi du rappel');
       }
-      setIsOpen(false);
     } catch (error) {
       console.error('Error sending reminder:', error);
-      toast.error("Une erreur est survenue lors de l'envoi du rappel");
+      toast.error('Erreur lors de l\'envoi du rappel');
     } finally {
       setIsSending(false);
     }
   };
-
+  
   return (
-    <>
-      <Button 
-        variant="outline" 
-        size="sm"
-        onClick={() => setIsOpen(true)}
-      >
-        <SendIcon className="h-4 w-4 mr-1" /> 
-        Envoyer un rappel
-      </Button>
-      
-      <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Envoyer un rappel</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir envoyer un rappel pour cette facture ? 
-              Un email sera envoyé au client pour lui rappeler de régler sa facture.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSendReminder} disabled={isSending}>
-              {isSending ? 'Envoi en cours...' : 'Envoyer le rappel'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <Button 
+      variant="outline" 
+      size="sm"
+      onClick={handleSendReminder} 
+      disabled={isSending}
+      className="text-yellow-500 border-yellow-500 hover:bg-yellow-50 hover:text-yellow-600"
+    >
+      <Mail className="h-4 w-4 mr-2" />
+      {isSending ? 'Envoi...' : 'Envoyer un rappel'}
+    </Button>
   );
 }
-
-export default InvoiceReminder;

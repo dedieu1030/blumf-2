@@ -64,34 +64,16 @@ export async function sendReminderForInvoice(invoiceId: string): Promise<Reminde
   }
 }
 
-// Export mock functions for testing
-export function getMockReminders() {
-  return [
-    {
-      id: '1',
-      name: 'Default reminder schedule',
-      enabled: true,
-      isDefault: true,
-      triggers: [
-        { id: '1', daysBefore: 7, message: 'Your invoice is due in 7 days', enabled: true, triggerType: 'days_before_due', triggerValue: 7, emailSubject: 'Invoice reminder', emailBody: 'Your invoice is due in 7 days' },
-        { id: '2', daysBefore: 3, message: 'Please remember to pay your invoice', enabled: true, triggerType: 'days_before_due', triggerValue: 3, emailSubject: 'Invoice reminder', emailBody: 'Please remember to pay your invoice' },
-        { id: '3', daysBefore: 0, message: 'Your invoice is due today', enabled: true, triggerType: 'days_after_due', triggerValue: 0, emailSubject: 'Invoice reminder', emailBody: 'Your invoice is due today' },
-        { id: '4', daysBefore: -3, message: 'Your invoice is 3 days overdue', enabled: true, triggerType: 'days_after_due', triggerValue: 3, emailSubject: 'Invoice reminder', emailBody: 'Your invoice is 3 days overdue' }
-      ]
-    }
-  ];
-}
-
 // Types for reminder schedules
 export interface ReminderTrigger {
   id: string;
   daysBefore: number; // Positive: before due date, Negative: after due date (overdue)
   message: string;
   enabled: boolean;
-  triggerType?: 'days_before_due' | 'days_after_due' | 'days_after_previous_reminder';
-  triggerValue?: number;
-  emailSubject?: string;
-  emailBody?: string;
+  triggerType: 'days_before_due' | 'days_after_due' | 'days_after_previous_reminder';
+  triggerValue: number;
+  emailSubject: string;
+  emailBody: string;
 }
 
 export interface ReminderSchedule {
@@ -107,6 +89,60 @@ export interface ReminderScheduleResult {
   success: boolean;
   schedules?: ReminderSchedule[];
   error?: string;
+}
+
+// Export mock functions for testing
+export function getMockReminders(): ReminderSchedule[] {
+  return [
+    {
+      id: '1',
+      name: 'Default reminder schedule',
+      enabled: true,
+      isDefault: true,
+      triggers: [
+        { 
+          id: '1', 
+          daysBefore: 7, 
+          message: 'Your invoice is due in 7 days', 
+          enabled: true, 
+          triggerType: 'days_before_due', 
+          triggerValue: 7, 
+          emailSubject: 'Invoice reminder', 
+          emailBody: 'Your invoice is due in 7 days' 
+        },
+        { 
+          id: '2', 
+          daysBefore: 3, 
+          message: 'Please remember to pay your invoice', 
+          enabled: true, 
+          triggerType: 'days_before_due', 
+          triggerValue: 3, 
+          emailSubject: 'Invoice reminder', 
+          emailBody: 'Please remember to pay your invoice' 
+        },
+        { 
+          id: '3', 
+          daysBefore: 0, 
+          message: 'Your invoice is due today', 
+          enabled: true, 
+          triggerType: 'days_after_due', 
+          triggerValue: 0, 
+          emailSubject: 'Invoice reminder', 
+          emailBody: 'Your invoice is due today' 
+        },
+        { 
+          id: '4', 
+          daysBefore: -3, 
+          message: 'Your invoice is 3 days overdue', 
+          enabled: true, 
+          triggerType: 'days_after_due', 
+          triggerValue: 3, 
+          emailSubject: 'Invoice reminder', 
+          emailBody: 'Your invoice is 3 days overdue' 
+        }
+      ]
+    }
+  ];
 }
 
 /**
@@ -149,7 +185,7 @@ export async function getReminderSchedules(): Promise<ReminderScheduleResult> {
           daysBefore: rule.days_before_due || 0,
           message: rule.message || '',
           enabled: rule.enabled,
-          triggerType: rule.trigger_type || 'days_before_due',
+          triggerType: rule.trigger_type as 'days_before_due' | 'days_after_due' | 'days_after_previous_reminder' || 'days_before_due',
           triggerValue: rule.trigger_value || 0,
           emailSubject: rule.email_subject || '',
           emailBody: rule.email_body || ''
@@ -230,8 +266,8 @@ export async function saveReminderSchedule(schedule: ReminderSchedule): Promise<
         days_before_due: trigger.daysBefore,
         message: trigger.message,
         enabled: trigger.enabled,
-        trigger_type: trigger.triggerType || 'days_before_due',
-        trigger_value: trigger.triggerValue || 0,
+        trigger_type: trigger.triggerType,
+        trigger_value: trigger.triggerValue,
         email_subject: trigger.emailSubject || '',
         email_body: trigger.emailBody || '',
         created_at: new Date().toISOString(),
@@ -298,7 +334,10 @@ export async function deleteReminderSchedule(scheduleId: string): Promise<{ succ
   }
 }
 
-// Mock function for fetching reminder schedules
+/**
+ * Fetch reminder schedules (alias for getReminderSchedules for backward compatibility)
+ */
 export async function fetchReminderSchedules(): Promise<ReminderSchedule[]> {
-  return getMockReminders();
+  const result = await getReminderSchedules();
+  return result.schedules || getMockReminders();
 }

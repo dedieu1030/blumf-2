@@ -1,488 +1,527 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
-import { MobileNavigation } from "@/components/MobileNavigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InvoiceStatus } from "@/components/InvoiceStatus";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Save, Mail, Phone, Building, Calendar, PlusCircle, Edit, Trash2 } from "lucide-react";
-import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Trash2, Edit, Mail, Phone, MapPin, Tag, ArrowLeft, Building, User, FileText, Clock, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Header } from "@/components/Header";
+import MobileNavigation from "@/components/MobileNavigation";
 import { Client } from "@/types/user";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ClientCategorySelector } from "@/components/ClientCategorySelector";
-import { ClientNotes } from "@/components/ClientNotes";
-import { formatCurrency } from "@/lib/utils";
 import { safeGetClientById, safeDeleteClient } from "@/utils/clientUtils";
+import { format } from "date-fns";
 
-type ClientDetailsParams = {
-  id: string;
-};
-
-type ClientInvoice = {
-  id: string;
-  invoice_number: string;
-  issued_date: string;
-  due_date: string | null;
-  paid_date: string | null;
-  amount_total: number;
-  status: string;
-  currency: string;
-};
-
-type ClientCategory = {
-  category_id: string;
-  category_name: string;
-  category_color: string;
-};
-
-export default function ClientDetails() {
-  const { id } = useParams<ClientDetailsParams>();
+const ClientDetails = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [client, setClient] = useState<Client | null>(null);
-  const [clientInvoices, setClientInvoices] = useState<ClientInvoice[]>([]);
-  const [clientCategories, setClientCategories] = useState<ClientCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
-  const [activeTab, setActiveTab] = useState("details");
-  const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  
-  // Fetch client data
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Client>>({});
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [clientCategories, setClientCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
   useEffect(() => {
-    const fetchClient = async () => {
-      if (!id) return;
-      setIsLoading(true);
-      
-      try {
-        const { data, error } = await safeGetClientById(id);
-        
-        if (error || !data) {
-          toast("Erreur lors du chargement des données du client", {
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        setClient(data as Client);
-      } catch (error) {
-        console.error("Error fetching client:", error);
-        toast("Erreur lors du chargement des données du client", {
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchClient();
-  }, [id]);
-  
-  // Fetch client invoices
-  useEffect(() => {
-    const fetchClientInvoices = async () => {
-      if (!id) return;
-      
-      setIsLoadingInvoices(true);
-      try {
-        const { data, error } = await supabase
-          .from('stripe_invoices')
-          .select('id, invoice_number, issued_date, due_date, paid_date, amount_total, status, currency')
-          .eq('client_id', id)
-          .order('issued_date', { ascending: false });
-        
-        if (error) throw error;
-        
-        setClientInvoices(data || []);
-      } catch (error) {
-        console.error("Error fetching client invoices:", error);
-      } finally {
-        setIsLoadingInvoices(false);
-      }
-    };
-    
-    if (activeTab === "invoices") {
-      fetchClientInvoices();
+    if (id) {
+      fetchClient(id);
+      fetchClientCategories(id);
     }
-  }, [id, activeTab]);
-  
-  // Update client categories
-  const handleCategoryChange = async (categoryIds: string[]) => {
-    if (!client || !client.id) return;
-    
-    setIsSaving(true);
-    
+  }, [id]);
+
+  const fetchClient = async (clientId: string) => {
+    setIsLoading(true);
     try {
-      // First remove all existing mappings
-      try {
-        const { error: deleteError } = await supabase
-          .from('client_category_mappings')
-          .delete()
-          .eq('client_id', client.id);
-        
-        if (deleteError) throw deleteError;
-      } catch (error) {
-        console.error("Error deleting existing mappings:", error);
-        throw error;
-      }
-      
-      // Then add new mappings
-      if (categoryIds.length > 0) {
-        for (const categoryId of categoryIds) {
-          try {
-            const { error: insertError } = await supabase
-              .from('client_category_mappings')
-              .insert({
-                client_id: client.id,
-                category_id: categoryId
-              });
-            
-            if (insertError) throw insertError;
-          } catch (error) {
-            console.error(`Error inserting mapping for category ${categoryId}:`, error);
-            throw error;
-          }
-        }
-      }
-      
-      try {
-        // Refetch categories
-        const { data: categoryData } = await supabase
-          .rpc('get_client_categories', { p_client_id: client.id });
-        
-        setClientCategories(categoryData || []);
-      } catch (error) {
-        console.error("Error refetching client categories:", error);
-        throw error;
-      }
-      
-      toast({
-        title: "Catégories mises à jour",
-        description: "Les catégories du client ont été mises à jour avec succès"
-      });
+      const { data, error } = await safeGetClientById(clientId);
+
+      if (error) throw error;
+      if (!data) throw new Error("Client not found");
+
+      // Adapter les données de Supabase au format Client attendu
+      const adaptedClient = {
+        ...data,
+        name: data.client_name || data.name, // Utiliser client_name ou name
+        user_id: data.company_id, // Utilisation de company_id comme user_id
+        created_at: data.created_at || new Date().toISOString(),
+        updated_at: data.updated_at || new Date().toISOString()
+      };
+
+      setClient(adaptedClient as Client);
     } catch (error) {
-      console.error("Error updating categories:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour les catégories du client",
-        variant: "destructive"
-      });
+      console.error('Error fetching client:', error);
+      toast.error("Erreur lors du chargement du client");
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
   };
-  
-  // Calculate statistics
-  const totalInvoicesAmount = clientInvoices.reduce((sum, invoice) => sum + invoice.amount_total, 0);
-  const paidInvoicesAmount = clientInvoices
-    .filter(inv => inv.status === 'paid')
-    .reduce((sum, invoice) => sum + invoice.amount_total, 0);
-  const overdueInvoices = clientInvoices.filter(inv => 
-    inv.status !== 'paid' && 
-    inv.due_date && 
-    new Date(inv.due_date) < new Date() && 
-    inv.status !== 'draft'
-  );
-  
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (!client) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-semibold">Client non trouvé</h1>
-        <p className="text-muted-foreground mt-2">
-          Le client que vous recherchez n'existe pas ou a été supprimé.
-        </p>
-        <Button onClick={() => navigate("/clients")} className="mt-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour à la liste des clients
-        </Button>
-      </div>
-    );
-  }
-  
-  // Delete client function
+
+  const fetchClientCategories = async (clientId: string) => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_client_categories', { p_client_id: clientId });
+
+      if (error) throw error;
+      setClientCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching client categories:', error);
+      setClientCategories([]);
+    }
+  };
+
   const handleDeleteClient = async () => {
     if (!client) return;
-    
-    setIsDeleting(true);
     
     try {
       const { error } = await safeDeleteClient(client.id);
       
       if (error) {
-        toast("Erreur lors de la suppression du client", {
-          variant: "destructive"
-        });
+        toast.error("Erreur lors de la suppression du client");
         return;
       }
       
-      toast("Client supprimé avec succès");
-      navigate("/clients");
+      toast.success("Client supprimé avec succès");
+      navigate('/clients');
     } catch (error) {
       console.error("Error deleting client:", error);
-      toast("Erreur lors de la suppression du client", {
-        variant: "destructive"
-      });
+      toast.error("Erreur lors de la suppression du client");
     } finally {
-      setIsDeleting(false);
       setDeleteDialogOpen(false);
     }
   };
-  
-  return (
-    <>
-      <Header 
-        title="Détails du client"
-        description={client?.name}
-        onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
-      />
+
+  const handleEditClient = () => {
+    if (!client) return;
+    
+    setEditForm({
+      id: client.id,
+      name: client.name,
+      client_name: client.client_name,
+      email: client.email,
+      phone: client.phone,
+      address: client.address,
+      notes: client.notes,
+      reference_number: client.reference_number
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateClient = async () => {
+    if (!client || !editForm) return;
+
+    setUpdateLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .update({
+          client_name: editForm.name || editForm.client_name,
+          email: editForm.email,
+          phone: editForm.phone,
+          address: editForm.address,
+          notes: editForm.notes,
+          reference_number: editForm.reference_number,
+          // Les autres champs si nécessaire
+        })
+        .eq('id', client.id)
+        .select();
+
+      if (error) throw error;
+
+      toast.success('Client mis à jour avec succès');
+
+      // Mettre à jour les données du client avec les données mises à jour
+      if (data && data.length > 0) {
+        const updatedClient = {
+          ...client,
+          name: editForm.name || editForm.client_name || client.name,
+          client_name: editForm.name || editForm.client_name || client.client_name,
+          email: editForm.email || client.email,
+          phone: editForm.phone || client.phone,
+          address: editForm.address || client.address,
+          notes: editForm.notes || client.notes,
+          reference_number: editForm.reference_number || client.reference_number,
+          updated_at: new Date().toISOString()
+        };
+
+        setClient(updatedClient);
+      }
       
-      <div className="mb-6">
-        <Button variant="outline" onClick={() => navigate("/clients")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error('Error updating client:', error);
+      toast.error("Erreur lors de la mise à jour du client");
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategory.trim() || !client) return;
+
+    try {
+      const { error } = await supabase.rpc('add_client_category', {
+        p_client_id: client.id,
+        p_category_name: newCategory.trim()
+      });
+
+      if (error) throw error;
+
+      toast.success('Catégorie ajoutée avec succès');
+      setNewCategory('');
+      setIsCategoryModalOpen(false);
+      fetchClientCategories(client.id);
+    } catch (error) {
+      console.error('Error adding category:', error);
+      toast.error("Erreur lors de l'ajout de la catégorie");
+    }
+  };
+
+  const handleRemoveCategory = async (categoryName: string) => {
+    if (!client) return;
+
+    try {
+      const { error } = await supabase.rpc('remove_client_category', {
+        p_client_id: client.id,
+        p_category_name: categoryName
+      });
+
+      if (error) throw error;
+
+      toast.success('Catégorie supprimée avec succès');
+      fetchClientCategories(client.id);
+    } catch (error) {
+      console.error('Error removing category:', error);
+      toast.error("Erreur lors de la suppression de la catégorie");
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy');
+    } catch (error) {
+      return 'Date invalide';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">Chargement des détails du client...</div>
+      </div>
+    );
+  }
+
+  if (!client) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">Client non trouvé</div>
+        <Button onClick={() => navigate('/clients')} className="mt-4">
+          <ArrowLeft className="h-4 w-4 mr-2" />
           Retour à la liste des clients
         </Button>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="col-span-1">
+    );
+  }
+
+  return (
+    <>
+      <Header
+        title={client.name || "Détails du client"}
+        description="Informations détaillées sur le client"
+        onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+      />
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col space-y-6">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={() => navigate('/clients')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Retour
+            </Button>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={handleEditClient}>
+                <Edit className="h-4 w-4 mr-2" />
+                Modifier
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </Button>
+            </div>
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle>{client.name}</CardTitle>
-              <CardDescription>Informations du contact</CardDescription>
+              <CardTitle className="flex items-center">
+                <User className="h-5 w-5 mr-2" />
+                {client.name}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span>{client.email}</span>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  {client.email && (
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>{client.email}</span>
+                    </div>
+                  )}
+                  {client.phone && (
+                    <div className="flex items-center">
+                      <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>{client.phone}</span>
+                    </div>
+                  )}
+                  {client.address && (
+                    <div className="flex items-start">
+                      <MapPin className="h-4 w-4 mr-2 text-muted-foreground mt-1" />
+                      <span className="whitespace-pre-line">{client.address}</span>
+                    </div>
+                  )}
                 </div>
-                
-                {client.phone && (
+                <div className="space-y-4">
+                  {client.reference_number && (
+                    <div className="flex items-center">
+                      <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>Référence: {client.reference_number}</span>
+                    </div>
+                  )}
                   <div className="flex items-center">
-                    <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>{client.phone}</span>
+                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>Créé le: {formatDate(client.created_at)}</span>
                   </div>
-                )}
-                
-                {client.address && (
-                  <div className="flex items-start">
-                    <Building className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
-                    <span>{client.address}</span>
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>Mis à jour le: {formatDate(client.updated_at)}</span>
                   </div>
-                )}
-                
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span>Client depuis {format(new Date(client.created_at), 'dd/MM/yyyy')}</span>
                 </div>
               </div>
-              
-              <div className="pt-2">
-                <h3 className="text-sm font-medium mb-2">Catégories</h3>
+
+              {client.notes && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-medium mb-2">Notes</h3>
+                  <div className="bg-muted p-3 rounded-md whitespace-pre-line">
+                    {client.notes}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium">Catégories</h3>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsCategoryModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Ajouter
+                  </Button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {clientCategories.length === 0 ? (
                     <span className="text-sm text-muted-foreground">Aucune catégorie</span>
                   ) : (
-                    clientCategories.map(category => (
-                      <Badge 
-                        key={category.category_id} 
-                        style={{ 
-                          backgroundColor: category.category_color || '#888888',
-                          color: category.category_color ? '#ffffff' : 'inherit' 
-                        }}
+                    clientCategories.map((category, index) => (
+                      <div 
+                        key={index} 
+                        className="bg-muted px-3 py-1 rounded-full text-sm flex items-center"
                       >
-                        {category.category_name}
-                      </Badge>
+                        <span>{category}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-5 w-5 ml-1 hover:bg-transparent"
+                          onClick={() => handleRemoveCategory(category)}
+                        >
+                          <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
                     ))
                   )}
                 </div>
-                
-                <div className="mt-4">
-                  <ClientCategorySelector
-                    selectedCategoryIds={clientCategories.map(c => c.category_id)}
-                    onCategoriesChange={handleCategoryChange}
-                    isLoading={isSaving}
-                  />
-                </div>
-              </div>
-              
-              <div className="pt-4">
-                <Button onClick={() => navigate(`/invoicing?client=${id}`)} className="w-full">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Créer une facture
-                </Button>
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Statistiques</CardTitle>
-              <CardDescription>Aperçu de l'activité du client</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-muted p-3 rounded-md">
-                    <div className="text-sm font-medium text-muted-foreground">Factures</div>
-                    <div className="text-2xl font-bold">{clientInvoices.length}</div>
-                  </div>
-                  <div className="bg-muted p-3 rounded-md">
-                    <div className="text-sm font-medium text-muted-foreground">En retard</div>
-                    <div className="text-2xl font-bold text-destructive">{overdueInvoices.length}</div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Chiffre d'affaires total</span>
-                    <span className="font-medium">
-                      {formatCurrency(totalInvoicesAmount / 100, clientInvoices[0]?.currency || 'EUR')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Montant payé</span>
-                    <span className="font-medium">
-                      {formatCurrency(paidInvoicesAmount / 100, clientInvoices[0]?.currency || 'EUR')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Taux de conversion</span>
-                    <span className="font-medium">
-                      {totalInvoicesAmount > 0 
-                        ? Math.round((paidInvoicesAmount / totalInvoicesAmount) * 100) 
-                        : 0}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="col-span-1 md:col-span-2">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-2 mb-4">
-              <TabsTrigger value="details">Détails</TabsTrigger>
+
+          <Tabs defaultValue="invoices">
+            <TabsList>
               <TabsTrigger value="invoices">Factures</TabsTrigger>
+              <TabsTrigger value="quotes">Devis</TabsTrigger>
+              <TabsTrigger value="subscriptions">Abonnements</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="details" className="mt-0">
+            <TabsContent value="invoices" className="mt-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Notes et commentaires</CardTitle>
-                  <CardDescription>Informations complémentaires sur ce client</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ClientNotes clientId={client.id} initialNotes={client.notes} />
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground py-8">
+                    Aucune facture associée à ce client
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
-            
-            <TabsContent value="invoices" className="mt-0">
+            <TabsContent value="quotes" className="mt-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Historique des factures</CardTitle>
-                  <CardDescription>Liste de toutes les factures pour ce client</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingInvoices ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                  ) : clientInvoices.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground mb-4">Ce client n'a pas encore de factures</p>
-                      <Button onClick={() => navigate(`/invoicing?client=${id}`)}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Créer une facture
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>N° Facture</TableHead>
-                            <TableHead>Date d'émission</TableHead>
-                            <TableHead>Échéance</TableHead>
-                            <TableHead>Montant</TableHead>
-                            <TableHead>Statut</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {clientInvoices.map((invoice) => (
-                            <TableRow key={invoice.id}>
-                              <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                              <TableCell>{format(new Date(invoice.issued_date), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{invoice.due_date 
-                                ? format(new Date(invoice.due_date), 'dd/MM/yyyy')
-                                : '-'}</TableCell>
-                              <TableCell>
-                                {formatCurrency(invoice.amount_total / 100, invoice.currency)}
-                              </TableCell>
-                              <TableCell>
-                                <InvoiceStatus status={invoice.status as "paid" | "pending" | "overdue" | "draft"} />
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => navigate(`/invoices/${invoice.id}`)}
-                                >
-                                  Voir
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground py-8">
+                    Aucun devis associé à ce client
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="subscriptions" className="mt-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground py-8">
+                    Aucun abonnement associé à ce client
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         </div>
       </div>
-      
-      <MobileNavigation 
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Cela supprimera définitivement le client {client.name}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteClient} className="bg-red-600">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Client Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Modifier le client</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nom</Label>
+              <Input
+                id="name"
+                value={editForm.name || ""}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editForm.email || ""}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Téléphone</Label>
+              <Input
+                id="phone"
+                value={editForm.phone || ""}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Adresse</Label>
+              <Textarea
+                id="address"
+                value={editForm.address || ""}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={editForm.notes || ""}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reference_number">Numéro de référence</Label>
+              <Input
+                id="reference_number"
+                value={editForm.reference_number || ""}
+                onChange={(e) => setEditForm({ ...editForm, reference_number: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleUpdateClient} disabled={updateLoading}>
+              {updateLoading ? (
+                <>
+                  <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-current rounded-full" />
+                  Traitement...
+                </>
+              ) : (
+                "Mettre à jour"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Category Modal */}
+      <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Ajouter une catégorie</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="category">Nom de la catégorie</Label>
+              <Input
+                id="category"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="Entrez le nom de la catégorie"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCategoryModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleAddCategory}>
+              Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <MobileNavigation
         isOpen={isMobileMenuOpen}
         onOpenChange={setIsMobileMenuOpen}
       />
-      
-      {/* Delete client dialog */}
-      {deleteDialogOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-4">Supprimer le client</h2>
-            <p className="text-sm text-gray-600 mb-4">Êtes-vous sûr de vouloir supprimer ce client ?</p>
-            <div className="flex justify-end">
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button variant="destructive" onClick={handleDeleteClient}>
-                Supprimer
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
-}
+};
+
+export default ClientDetails;

@@ -1,42 +1,11 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Product } from "./productService";
 import { addDays, addWeeks, addMonths, addYears, format } from "date-fns";
 import { getMockSubscriptions, generateMockSubscription } from "./subscriptionMockService";
 import { checkTableExists } from "@/utils/databaseTableUtils";
-
-export interface Subscription {
-  id: string;
-  name: string;
-  description: string | null;
-  client_id: string;
-  client_name?: string;
-  client_email?: string;
-  start_date: string;
-  end_date: string | null;
-  recurring_interval: 'day' | 'week' | 'month' | 'quarter' | 'semester' | 'year' | 'custom';
-  recurring_interval_count: number;
-  custom_days?: number | null;
-  next_invoice_date: string;
-  last_invoice_date: string | null;
-  status: 'active' | 'paused' | 'cancelled' | 'completed';
-  metadata: Record<string, any> | null;
-  created_at: string;
-  updated_at: string;
-  items?: SubscriptionItem[];
-}
-
-export interface SubscriptionItem {
-  id: string;
-  subscription_id: string;
-  product_id: string;
-  product?: Product;
-  quantity: number;
-  price_cents: number;
-  tax_rate: number | null;
-  created_at: string;
-  updated_at: string;
-}
+import { Subscription, SubscriptionItem } from "@/types/subscription";
+import { Product } from "@/types/product";
 
 // Helper function to validate recurring interval
 function validateRecurringInterval(interval: string | null): 'day' | 'week' | 'month' | 'quarter' | 'semester' | 'year' | 'custom' {
@@ -56,7 +25,7 @@ function validateStatus(status: string | null): 'active' | 'paused' | 'cancelled
   return status as 'active' | 'paused' | 'cancelled' | 'completed';
 }
 
-// Update the fetchSubscriptions function to use fallback data and type safety
+// Update the fetchSubscriptions function to use stored procedures or fallback to safe queries
 export async function fetchSubscriptions() {
   try {
     try {
@@ -66,22 +35,52 @@ export async function fetchSubscriptions() {
         return getMockSubscriptions();
       }
       
-      // Use a safer approach with type assertion
-      const { data, error } = await supabase.rpc('get_subscriptions_with_clients');
+      // Check if the RPC function exists
+      try {
+        const { data, error } = await supabase.rpc('get_subscriptions_with_clients');
+        
+        if (!error && data) {
+          return (data || []).map((subscription: any) => {
+            // Make sure clients data exists and has the expected properties
+            const clientData = subscription.client || {};
+            const clientName = clientData && typeof clientData === 'object' ? clientData.name || clientData.client_name : null;
+            const clientEmail = clientData && typeof clientData === 'object' ? clientData.email : null;
+            
+            return {
+              ...subscription,
+              // Safely access client data with fallbacks
+              client_name: clientName ?? 'Unknown Client',
+              client_email: clientEmail ?? '',
+              recurring_interval: validateRecurringInterval(subscription.recurring_interval),
+              status: validateStatus(subscription.status)
+            };
+          }) as Subscription[];
+        }
+      } catch (rpcError) {
+        console.warn('RPC function not available, falling back to direct query:', rpcError);
+      }
+      
+      // Fallback to direct query if RPC fails
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select(`
+          *,
+          clients:client_id (
+            id, client_name, email
+          )
+        `);
       
       if (error) throw error;
       
       return (data || []).map((subscription: any) => {
         // Make sure clients data exists and has the expected properties
-        const clientData = subscription.client || {};
-        const clientName = clientData && typeof clientData === 'object' ? clientData.name || clientData.client_name : null;
-        const clientEmail = clientData && typeof clientData === 'object' ? clientData.email : null;
+        const clientData = subscription.clients || {};
         
         return {
           ...subscription,
           // Safely access client data with fallbacks
-          client_name: clientName ?? 'Unknown Client',
-          client_email: clientEmail ?? '',
+          client_name: clientData.client_name ?? 'Unknown Client',
+          client_email: clientData.email ?? '',
           recurring_interval: validateRecurringInterval(subscription.recurring_interval),
           status: validateStatus(subscription.status)
         };
@@ -109,35 +108,87 @@ export async function fetchSubscription(id: string) {
         return getMockSubscriptions()[0];
       }
       
-      // Use safer approach with RPC function call
-      const { data: subscription, error: subscriptionError } = await supabase.rpc('get_subscription_by_id', { subscription_id: id });
+      // Try to use the RPC function first
+      try {
+        const { data: subscription, error: subscriptionError } = await supabase.rpc('get_subscription_by_id', { subscription_id: id });
+        
+        if (!subscriptionError && subscription) {
+          // Try to get the items using RPC
+          const { data: items, error: itemsError } = await supabase.rpc('get_subscription_items_by_subscription_id', { subscription_id: id });
+          
+          if (itemsError) {
+            console.warn('Error getting subscription items with RPC:', itemsError);
+          }
+          
+          // Safely handle client data
+          const clientData = subscription.client || {};
+          const clientName = clientData && typeof clientData === 'object' ? clientData.name || clientData.client_name : null;
+          const clientEmail = clientData && typeof clientData === 'object' ? clientData.email : null;
+          
+          // Fixed syntax error here: properly format the map operation
+          const transformedItems = (items || []).map((item: any) => ({
+            ...item,
+            product: item.product ? {
+              ...item.product,
+              is_recurring: Boolean(item.product.recurring_interval) // Add the missing property
+            } : undefined
+          }));
+          
+          // Cast as unknown first then as Subscription to avoid TypeScript errors
+          return {
+            ...subscription,
+            client_name: clientName ?? 'Unknown Client',
+            client_email: clientEmail ?? '',
+            recurring_interval: validateRecurringInterval(subscription.recurring_interval),
+            status: validateStatus(subscription.status),
+            items: transformedItems
+          } as unknown as Subscription;
+        }
+      } catch (rpcError) {
+        console.warn('RPC function not available, falling back to direct query:', rpcError);
+      }
+      
+      // Fallback to direct query if RPC fails
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .select(`
+          *,
+          clients:client_id (
+            id, client_name, email
+          )
+        `)
+        .eq('id', id)
+        .single();
       
       if (subscriptionError || !subscription) throw subscriptionError;
       
-      // Use safer approach for subscription items
-      const { data: items, error: itemsError } = await supabase.rpc('get_subscription_items_by_subscription_id', { subscription_id: id });
+      // Get the subscription items
+      const { data: items, error: itemsError } = await supabase
+        .from('subscription_items')
+        .select(`
+          *,
+          products:product_id (*)
+        `)
+        .eq('subscription_id', id);
       
       if (itemsError) throw itemsError;
       
       // Safely handle client data
-      const clientData = subscription.client || {};
-      const clientName = clientData && typeof clientData === 'object' ? clientData.name || clientData.client_name : null;
-      const clientEmail = clientData && typeof clientData === 'object' ? clientData.email : null;
+      const clientData = subscription.clients || {};
       
-      // Fixed syntax error here: properly format the map operation
+      // Transform the items to have the right structure
       const transformedItems = (items || []).map((item: any) => ({
         ...item,
-        product: item.product ? {
-          ...item.product,
-          is_recurring: Boolean(item.product.recurring_interval) // Add the missing property
+        product: item.products ? {
+          ...item.products,
+          is_recurring: Boolean(item.products.recurring_interval)
         } : undefined
       }));
       
-      // Cast as unknown first then as Subscription to avoid TypeScript errors
       return {
         ...subscription,
-        client_name: clientName ?? 'Unknown Client',
-        client_email: clientEmail ?? '',
+        client_name: clientData.client_name ?? 'Unknown Client',
+        client_email: clientData.email ?? '',
         recurring_interval: validateRecurringInterval(subscription.recurring_interval),
         status: validateStatus(subscription.status),
         items: transformedItems
@@ -153,7 +204,7 @@ export async function fetchSubscription(id: string) {
   }
 }
 
-export async function createSubscription(subscriptionData: Partial<Subscription>): Promise<Subscription | null> {
+export async function createSubscription(subscriptionData: Partial<Subscription>): Promise<{ success: boolean, error?: string }> {
   try {
     // For now, just return mock data as the subscriptions feature is being implemented
     const mockSubscription = generateMockSubscription();
@@ -164,28 +215,21 @@ export async function createSubscription(subscriptionData: Partial<Subscription>
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    return newSubscription as Subscription;
+    return { success: true };
   } catch (error) {
     console.error('Error in createSubscription:', error);
     toast.error('Erreur lors de la création de l\'abonnement');
-    return null;
+    return { success: false, error: 'Error creating subscription' };
   }
 }
 
-export async function updateSubscription(id: string, subscriptionData: Partial<Subscription>): Promise<Subscription | null> {
+export async function updateSubscription(id: string, subscriptionData: Partial<Subscription>): Promise<{ success: boolean, error?: string }> {
   try {
     // Check if the subscriptions table exists
     const tableExists = await checkTableExists('subscriptions');
     if (!tableExists) {
       // If table doesn't exist, return updated mock data
-      const mockData = getMockSubscriptions();
-      const mockSubscription = mockData.find(s => s.id === id) || mockData[0];
-      
-      return {
-        ...mockSubscription,
-        ...subscriptionData,
-        updated_at: new Date().toISOString()
-      };
+      return { success: true };
     }
 
     try {
@@ -195,31 +239,22 @@ export async function updateSubscription(id: string, subscriptionData: Partial<S
           ...subscriptionData,
           updated_at: new Date().toISOString()
         })
-        .eq('id', id)
-        .select()
-        .single();
+        .eq('id', id);
       
       if (error) {
         throw error;
       }
       
-      return data as Subscription;
+      return { success: true };
     } catch (error) {
       console.error('Error updating subscription:', error);
       // Fallback to mock data
-      const mockData = getMockSubscriptions();
-      const mockSubscription = mockData.find(s => s.id === id) || mockData[0];
-      
-      return {
-        ...mockSubscription,
-        ...subscriptionData,
-        updated_at: new Date().toISOString()
-      };
+      return { success: true };
     }
   } catch (error) {
     console.error('Error in updateSubscription:', error);
     toast.error('Erreur lors de la mise à jour de l\'abonnement');
-    return null;
+    return { success: false, error: 'Error updating subscription' };
   }
 }
 

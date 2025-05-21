@@ -63,9 +63,7 @@ const Clients = () => {
       setClients(adaptedClients as Client[]);
     } catch (error) {
       console.error('Error fetching clients:', error);
-      toast("Erreur lors du chargement des clients", {
-        variant: "destructive"
-      });
+      toast.error("Erreur lors du chargement des clients");
     } finally {
       setIsLoading(false);
     }
@@ -91,9 +89,7 @@ const Clients = () => {
       const { error } = await safeDeleteClient(id);
       
       if (error) {
-        toast("Erreur lors de la suppression du client", {
-          variant: "destructive"
-        });
+        toast.error("Erreur lors de la suppression du client");
         return;
       }
       
@@ -102,9 +98,7 @@ const Clients = () => {
       toast("Client supprimé avec succès");
     } catch (error) {
       console.error("Error deleting client:", error);
-      toast("Erreur lors de la suppression du client", {
-        variant: "destructive"
-      });
+      toast.error("Erreur lors de la suppression du client");
     } finally {
       setDeletingClientId(null);
       setDeleteDialogOpen(false);
@@ -126,9 +120,7 @@ const Clients = () => {
       setClients(clients.filter(client => client.id !== selectedClient.id));
     } catch (error) {
       console.error('Error deleting client:', error);
-      toast("Erreur lors de la suppression du client", {
-        variant: "destructive"
-      });
+      toast.error("Erreur lors de la suppression du client");
     } finally {
       setDeleteDialogOpen(false);
       setSelectedClient(null);
@@ -192,9 +184,7 @@ const Clients = () => {
       setIsEditModalOpen(false);
     } catch (error) {
       console.error('Error updating client:', error);
-      toast("Erreur lors de la mise à jour du client", {
-        variant: "destructive"
-      });
+      toast.error("Erreur lors de la mise à jour du client");
     } finally {
       setUpdateLoading(false);
     }
