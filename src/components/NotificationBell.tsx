@@ -1,112 +1,161 @@
 
 import React, { useState } from "react";
-import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useNotifications } from "@/context/NotificationsContext";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNavigate } from "react-router-dom";
+import { BellRing, Check, Clock, CreditCard, FileCheck, FileWarning } from "lucide-react";
+import { useNotifications } from "@/context/NotificationsContext";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { NotificationsPanel } from "./NotificationsPanel";
+import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-export const NotificationBell = () => {
+export function NotificationBell() {
+  const [open, setOpen] = useState(false);
   const { notifications, unreadCount, markAsRead } = useNotifications();
-  const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  
-  const handleNotificationClick = async (notification: any) => {
-    // Mark notification as read
-    await markAsRead(notification.id);
-    
-    // Navigate to the relevant page based on notification type
-    if (notification.reference_type === 'invoice' && notification.reference_id) {
-      navigate(`/invoices?highlight=${notification.reference_id}`);
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  const recentNotifications = notifications.slice(0, 5);
+
+  const handleNotificationClick = (notification: any) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
     }
-    
-    // Close the popover
-    setIsOpen(false);
+
+    setOpen(false);
+
+    // Handle navigation if notification has a link
+    if (notification.link) {
+      navigate(notification.link);
+    }
   };
-  
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className={cn("relative", isMobile && "border border-input h-9 w-9")}
+
+  const handleViewAll = () => {
+    setOpen(false);
+    navigate("/notifications");
+  };
+
+  const handleOpenPanel = () => {
+    setOpen(false);
+    setPanelOpen(true);
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'payment_received':
+        return <CreditCard className="h-4 w-4 text-green-500" />;
+      case 'invoice_created':
+        return <FileCheck className="h-4 w-4 text-blue-500" />;
+      case 'invoice_due_soon':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'invoice_overdue':
+        return <FileWarning className="h-4 w-4 text-red-500" />;
+      default:
+        return <BellRing className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  if (isMobile) {
+    return (
+      <>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          onClick={() => setPanelOpen(true)}
         >
-          <Bell className="h-5 w-5" />
+          <BellRing className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge
-              className="absolute top-0 right-0 h-[18px] min-w-[18px] flex items-center justify-center rounded-full p-0 text-[10px] leading-none"
-            >
+            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
               {unreadCount}
-            </Badge>
+            </span>
           )}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="p-2 border-b border-border">
-          <div className="flex justify-between items-center">
-            <h4 className="text-sm font-medium">Notifications</h4>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-xs h-7" 
-              onClick={() => navigate("/notifications")}
-            >
-              Voir tout
-            </Button>
+        <NotificationsPanel open={panelOpen} onOpenChange={setPanelOpen} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="relative">
+            <BellRing className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                {unreadCount}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0">
+          <div className="flex items-center justify-between p-4 pb-2">
+            <h4 className="font-medium">Notifications</h4>
+            {unreadCount > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                {unreadCount} nouvelle{unreadCount > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
-        </div>
-        
-        {notifications.length === 0 ? (
-          <div className="py-6 text-center text-muted-foreground text-sm">
-            Aucune notification
-          </div>
-        ) : (
-          <ScrollArea className="h-[300px]">
-            <div className="divide-y divide-border">
-              {notifications.slice(0, 5).map((notification) => (
-                <div
-                  key={notification.id}
-                  className={cn(
-                    "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
-                    !notification.is_read && "bg-muted/20"
-                  )}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex justify-between items-start">
-                    <h5 className={cn("text-sm", !notification.is_read && "font-medium")}>
-                      {notification.title}
-                    </h5>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(notification.created_at), { 
-                        addSuffix: true,
-                        locale: fr
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {notification.message}
-                  </p>
-                  {!notification.is_read && (
-                    <div className="h-2 w-2 bg-primary rounded-full absolute top-3 right-3" />
-                  )}
+
+          <ScrollArea className="h-[calc(var(--radix-popover-content-available-height)-110px)] pb-0">
+            <div className="space-y-2 p-2">
+              {recentNotifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-4">
+                  <p className="text-sm text-muted-foreground">Pas de notifications</p>
                 </div>
-              ))}
+              ) : (
+                recentNotifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={cn(
+                      "flex items-start gap-2 p-2 rounded-md cursor-pointer hover:bg-accent",
+                      !notification.read && "bg-accent/50"
+                    )}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="mt-0.5 p-1 rounded-full bg-accent/70">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className={cn(
+                        "text-sm",
+                        !notification.read ? "font-medium" : "text-muted-foreground"
+                      )}>
+                        {notification.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(notification.created_at), "d MMM, HH:mm", { locale: fr })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </ScrollArea>
-        )}
-      </PopoverContent>
-    </Popover>
+
+          <div className="flex items-center justify-between p-2 border-t">
+            <Button variant="ghost" size="sm" onClick={handleViewAll}>
+              Voir toutes
+            </Button>
+            {isMobile ? null : (
+              <Button variant="outline" size="sm" onClick={handleOpenPanel}>
+                Plein écran
+              </Button>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+      <NotificationsPanel open={panelOpen} onOpenChange={setPanelOpen} />
+    </>
   );
-};
+}

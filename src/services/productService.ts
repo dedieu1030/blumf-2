@@ -10,8 +10,16 @@ export interface Product {
   category?: string;
   category_name?: string;
   is_recurring: boolean;
-  recurring_interval?: string;
+  recurring_interval?: 'day' | 'week' | 'month' | 'year' | null;
   recurring_period?: number;
+  recurring_interval_count?: number;
+  price_cents?: number; // Added for compatibility with existing code
+  currency?: string; // Added for compatibility with existing code
+  tax_rate?: number; // Added for compatibility with existing code
+  product_type?: 'product' | 'service' | null; // Added for compatibility with existing code
+  active?: boolean; // Added for compatibility with existing code
+  category_id?: string; // Added for compatibility with existing code
+  metadata?: Record<string, any>; // Added for compatibility with existing code
   created_at?: string;
   updated_at?: string;
 }
@@ -23,6 +31,15 @@ export interface ProductCategory {
   created_at?: string;
 }
 
+// Helper function to format price for display
+export const formatPrice = (priceCents: number | undefined, currency = 'EUR'): string => {
+  if (priceCents === undefined) return '0.00';
+  
+  const amount = (priceCents / 100).toFixed(2);
+  
+  return `${amount} ${currency}`;
+};
+
 // Function to create a product
 export const createProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Product | null, error: any }> => {
   const { data, error } = await supabase
@@ -30,7 +47,7 @@ export const createProduct = async (product: Omit<Product, 'id' | 'created_at' |
     .insert({
       ...product,
       id: uuidv4(),
-      price_cents: parseInt((parseFloat(product.price) * 100).toString()) // Store price in cents
+      price_cents: product.price_cents || (product.price ? parseInt((parseFloat(product.price) * 100).toString()) : 0)
     })
     .select('*')
     .single();
@@ -68,6 +85,13 @@ export const getProducts = async (): Promise<Product[]> => {
       is_recurring: item.is_recurring || false,
       recurring_interval: item.recurring_interval,
       recurring_period: item.recurring_period,
+      recurring_interval_count: item.recurring_interval_count,
+      price_cents: item.price_cents,
+      currency: item.currency,
+      tax_rate: item.tax_rate,
+      product_type: item.product_type,
+      active: item.active !== undefined ? item.active : true,
+      category_id: item.category_id,
       created_at: item.created_at,
       updated_at: item.updated_at,
     }));
@@ -76,6 +100,9 @@ export const getProducts = async (): Promise<Product[]> => {
     return [];
   }
 };
+
+// Alias for backward compatibility
+export const fetchProducts = getProducts;
 
 // Function to check if products table exists and create it if not
 async function checkAndCreateProductsTable() {
@@ -110,6 +137,9 @@ export const getCategories = async (): Promise<ProductCategory[]> => {
   return (data || []) as ProductCategory[];
 };
 
+// Alias for backward compatibility
+export const fetchCategories = getCategories;
+
 // Function to create a category
 export const createCategory = async (category: Omit<ProductCategory, 'id' | 'created_at'>): Promise<{ data: ProductCategory | null, error: any }> => {
   const { data, error } = await supabase
@@ -118,6 +148,21 @@ export const createCategory = async (category: Omit<ProductCategory, 'id' | 'cre
       ...category,
       id: uuidv4()
     })
+    .select('*')
+    .single();
+
+  return { 
+    data: data as ProductCategory | null, 
+    error 
+  };
+};
+
+// Function to update a category
+export const updateCategory = async (id: string, category: Partial<ProductCategory>): Promise<{ data: ProductCategory | null, error: any }> => {
+  const { data, error } = await supabase
+    .from('product_categories')
+    .update(category)
+    .eq('id', id)
     .select('*')
     .single();
 
@@ -165,6 +210,13 @@ export const updateProduct = async (id: string, product: Partial<Product>): Prom
       is_recurring: data.is_recurring || false,
       recurring_interval: data.recurring_interval,
       recurring_period: data.recurring_period,
+      recurring_interval_count: data.recurring_interval_count,
+      price_cents: data.price_cents,
+      currency: data.currency,
+      tax_rate: data.tax_rate,
+      product_type: data.product_type,
+      active: data.active !== undefined ? data.active : true,
+      category_id: data.category_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
