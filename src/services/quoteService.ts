@@ -1,13 +1,13 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Quote, QuoteItem } from '@/types/invoice';
+import { Quote, QuoteItem } from '@/types/quote';
 
 export async function fetchQuotes(): Promise<Quote[]> {
   const { data, error } = await supabase
     .from('devis')
     .select(`
       *,
-      client:clients (id, client_name)
+      client:client_id (id, client_name)
     `)
     .order('created_at', { ascending: false });
 
@@ -24,7 +24,7 @@ export async function fetchQuoteById(id: string): Promise<Quote | null> {
     .from('devis')
     .select(`
       *,
-      client:clients (id, client_name)
+      client:client_id (id, client_name)
     `)
     .eq('id', id)
     .single();

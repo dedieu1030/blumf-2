@@ -44,7 +44,7 @@ const Quotes = () => {
     try {
       // Check if the quotes table exists before querying it
       const { count, error: checkError } = await supabase
-        .from('quotes')
+        .from('devis')
         .select('*', { count: 'exact', head: true });
 
       if (checkError) {
@@ -55,7 +55,7 @@ const Quotes = () => {
       }
 
       const { data, error } = await supabase
-        .from('quotes')
+        .from('devis')
         .select(`
           *,
           client:client_id (
@@ -92,7 +92,7 @@ const Quotes = () => {
   const handleDeleteQuote = async (quoteId: string) => {
     try {
       const { error } = await supabase
-        .from('quotes')
+        .from('devis')
         .delete()
         .eq('id', quoteId);
 

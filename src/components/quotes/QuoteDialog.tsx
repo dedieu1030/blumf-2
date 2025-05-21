@@ -56,23 +56,28 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       setIsLoading(true);
       fetchQuoteById(editQuoteId).then((quote) => {
         if (!quote) return;
-        setQuoteNumber(quote.quote_number);
-        setIssueDate(quote.issue_date);
-        setValidityDate(quote.validity_date || '');
-        setExecutionDate(quote.execution_date || '');
-        setStatus(quote.status);
-        setClientId(quote.client_id);
-        setClientName(quote.client?.client_name || '');
-        setNotes(quote.notes || '');
+        
+        setQuoteNumber(quote.quote_number || "");
+        setIssueDate(quote.issue_date || new Date().toISOString().split('T')[0]);
+        setValidityDate(quote.validity_date || "");
+        setExecutionDate(quote.execution_date || "");
+        setStatus(quote.status || "draft");
+        setClientId(quote.client_id || "");
+        
+        if (quote.client) {
+          setClientName(quote.client.client_name || "");
+        }
+        
+        setNotes(quote.notes || "");
         
         // Set items if available
-        if (quote.items && quote.items.length > 0) {
-          setQuoteItems(quote.items.map((item) => ({
+        if (quote.items && Array.isArray(quote.items) && quote.items.length > 0) {
+          setQuoteItems(quote.items.map((item: any) => ({
             id: item.id,
-            description: item.description,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price
+            description: item.description || "",
+            quantity: item.quantity || 0,
+            unit_price: item.unit_price || 0,
+            total_price: item.total_price || 0
           })));
         }
         
@@ -98,7 +103,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
   const fetchQuoteById = async (id: string) => {
     try {
       const { data, error } = await supabase
-        .from('quotes')
+        .from('devis')
         .select(`
           *,
           client:client_id (
@@ -108,7 +113,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
             address,
             phone
           ),
-          items:quote_items (*)
+          items:devis_items (*)
         `)
         .eq('id', id)
         .single();
@@ -212,7 +217,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       if (editQuoteId) {
         // Update existing quote
         const { data: updatedQuote, error } = await supabase
-          .from('quotes')
+          .from('devis')
           .update(quoteData)
           .eq('id', editQuoteId)
           .select()
@@ -223,7 +228,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         
         // Delete existing items and insert new ones
         const { error: deleteError } = await supabase
-          .from('quote_items')
+          .from('devis_items')
           .delete()
           .eq('quote_id', quoteId);
           
@@ -231,13 +236,13 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
       } else {
         // Create new quote
         const { data: newQuote, error } = await supabase
-          .from('quotes')
+          .from('devis')
           .insert(quoteData)
           .select()
           .single();
           
         if (error) throw error;
-        quoteId = newQuote.id;
+        quoteId = newQuote?.id;
       }
       
       // Insert quote items
@@ -251,7 +256,7 @@ export function QuoteDialog({ open, onOpenChange, editQuoteId, onSuccess }: Quot
         }));
         
         const { error: itemsError } = await supabase
-          .from('quote_items')
+          .from('devis_items')
           .insert(formattedItems);
           
         if (itemsError) throw itemsError;
