@@ -9,8 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { QuickAction } from "@/components/QuickAction";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, FileText, FilePlus } from "lucide-react";
-import { QuoteList } from "@/components/QuoteList";
+import { ArrowRight, FileText } from "lucide-react";
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -33,7 +32,7 @@ const Dashboard = () => {
         // Update overdue invoices
         const { data: overdueData, error: overdueError } = await supabase
           .from('invoices')
-          .select('*, client:clients!invoices_client_id_fkey(*)')
+          .select('*, client:clients(*)')
           .eq('status', 'overdue')
           .order('due_date', { ascending: false });
           
@@ -59,7 +58,7 @@ const Dashboard = () => {
         // Fetch recent invoices
         const { data: recentData, error: recentError } = await supabase
           .from('invoices')
-          .select('*, client:clients!invoices_client_id_fkey(*)')
+          .select('*, client:clients(*)')
           .order('created_at', { ascending: false })
           .limit(5);
 
@@ -104,7 +103,7 @@ const Dashboard = () => {
         overdueInvoices={overdueInvoices}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 gap-6 mt-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -120,27 +119,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <InvoiceList 
-              data={recentInvoices}
-              limit={5}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-xl">Devis récents</CardTitle>
-              <CardDescription>Les 5 derniers devis créés</CardDescription>
-            </div>
-            <Link to="/quotes">
-              <Button variant="ghost" size="sm" className="gap-1">
-                <FilePlus className="h-4 w-4" /> Tous les devis
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <QuoteList 
+              invoices={recentInvoices}
               limit={5}
             />
           </CardContent>

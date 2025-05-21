@@ -1,288 +1,187 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface Product {
   id: string;
   name: string;
-  description: string | null;
-  price_cents: number;
-  tax_rate: number | null;
-  is_recurring: boolean;
-  active: boolean;
-  category_id: string | null;
+  description?: string;
+  price: string; // We store prices as strings to handle currency formatting
+  category?: string;
   category_name?: string;
-  currency: string;
-  metadata: Record<string, any> | null;
-  created_at: string;
-  updated_at: string;
-  // Propriétés additionnelles pour gérer la récurrence
-  recurring_interval?: 'day' | 'week' | 'month' | 'year' | null;
-  recurring_interval_count?: number | null;
-  product_type?: 'product' | 'service' | null;
+  is_recurring: boolean;
+  recurring_interval?: string;
+  recurring_period?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProductCategory {
   id: string;
   name: string;
-  color: string | null;
-  created_at: string;
-  updated_at: string;
+  color?: string;
+  created_at?: string;
 }
 
-// Format price for display
-export function formatPrice(cents: number, currency = 'EUR') {
-  const price = cents / 100;
-  return price.toLocaleString('fr-CA', {
-    style: 'currency',
-    currency: currency,
-  });
-}
-
-// Fetch all products
-export async function fetchProducts(includeInactive = false) {
-  try {
-    let query = supabase
-      .from('stripe_products')
-      .select('*')
-      .order('name');
-    
-    if (!includeInactive) {
-      query = query.eq('active', true);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) throw error;
-    
-    // Format products with their categories
-    const formattedProducts = (data || []).map(product => ({
+// Function to create a product
+export const createProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Product | null, error: any }> => {
+  const { data, error } = await supabase
+    .from('products')
+    .insert({
       ...product,
-      is_recurring: !!product.recurring_interval,
-      category_name: '',
-      price: formatPrice(product.price_cents || 0)
+      id: uuidv4(),
+      price_cents: parseInt((parseFloat(product.price) * 100).toString()) // Store price in cents
+    })
+    .select('*')
+    .single();
+
+  return { 
+    data: data as Product | null, 
+    error 
+  };
+};
+
+// Function to get all products
+export const getProducts = async (): Promise<Product[]> => {
+  try {
+    // First create products table if it doesn't exist
+    await checkAndCreateProductsTable();
+    
+    const { data, error } = await supabase
+      .from('products')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching products:', error);
+      return [];
+    }
+
+    if (!data) return [];
+
+    // Transform data to match Product interface
+    return data.map(item => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      price: ((item.price_cents || 0) / 100).toFixed(2),
+      category: item.category_id,
+      is_recurring: item.is_recurring || false,
+      recurring_interval: item.recurring_interval,
+      recurring_period: item.recurring_period,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
     }));
-    
-    return formattedProducts as Product[];
   } catch (error) {
-    console.error('Error fetching products:', error);
-    toast.error('Erreur lors du chargement des produits');
+    console.error('Error in getProducts:', error);
     return [];
   }
-}
+};
 
-// Fetch a single product by ID
-export async function fetchProduct(id: string) {
+// Function to check if products table exists and create it if not
+async function checkAndCreateProductsTable() {
   try {
-    const { data, error } = await supabase
-      .from('stripe_products')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (error) throw error;
-    
-    return {
-      ...data,
-      is_recurring: !!data.recurring_interval,
-      category_name: ''
-    } as Product;
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    return null;
-  }
-}
-
-// Create a new product
-export async function createProduct(product: Partial<Product>) {
-  try {
-    const { data, error } = await supabase
-      .from('stripe_products')
-      .insert({
-        name: product.name,
-        description: product.description,
-        price_cents: product.price_cents,
-        tax_rate: product.tax_rate,
-        recurring_interval: product.recurring_interval,
-        recurring_interval_count: product.recurring_interval_count,
-        product_type: product.product_type,
-        active: product.active !== undefined ? product.active : true,
-        category_id: product.category_id,
-        currency: product.currency || 'EUR',
-        metadata: product.metadata || {}
-      })
-      .select();
-    
-    if (error) throw error;
-    
-    toast.success('Produit créé avec succès');
-    return {
-      ...data[0],
-      is_recurring: !!data[0].recurring_interval
-    } as Product;
-  } catch (error) {
-    console.error('Error creating product:', error);
-    toast.error('Erreur lors de la création du produit');
-    return null;
-  }
-}
-
-// Update an existing product
-export async function updateProduct(id: string, product: Partial<Product>) {
-  try {
-    const { data, error } = await supabase
-      .from('stripe_products')
-      .update({
-        name: product.name,
-        description: product.description,
-        price_cents: product.price_cents,
-        tax_rate: product.tax_rate,
-        recurring_interval: product.recurring_interval,
-        recurring_interval_count: product.recurring_interval_count,
-        product_type: product.product_type,
-        active: product.active,
-        category_id: product.category_id,
-        currency: product.currency,
-        metadata: product.metadata,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select();
-    
-    if (error) throw error;
-    
-    toast.success('Produit mis à jour avec succès');
-    return {
-      ...data[0],
-      is_recurring: !!data[0].recurring_interval
-    } as Product;
-  } catch (error) {
-    console.error('Error updating product:', error);
-    toast.error('Erreur lors de la mise à jour du produit');
-    return null;
-  }
-}
-
-// Delete a product
-export async function deleteProduct(id: string) {
-  try {
+    // Check if the table exists by trying to select from it
     const { error } = await supabase
-      .from('stripe_products')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
-    
-    toast.success('Produit supprimé avec succès');
-    return true;
-  } catch (error) {
-    console.error('Error deleting product:', error);
-    toast.error('Erreur lors de la suppression du produit');
-    return false;
+      .from('products')
+      .select('count(*)')
+      .limit(1);
+      
+    // If the error indicates the table doesn't exist, create it
+    if (error && error.message.includes('does not exist')) {
+      await supabase.rpc('create_products_table');
+      console.log('Products table created successfully');
+    }
+  } catch (err) {
+    console.error('Error checking/creating products table:', err);
   }
 }
 
-// Type for Category
-export type Category = ProductCategory;
+// Function to get all categories
+export const getCategories = async (): Promise<ProductCategory[]> => {
+  const { data, error } = await supabase
+    .from('product_categories')
+    .select('*');
 
-// Fetch product categories
-export async function fetchProductCategories() {
-  try {
-    const { data, error } = await supabase
-      .from('product_categories')
-      .select('*')
-      .order('name');
-    
-    if (error) throw error;
-    
-    return data as ProductCategory[];
-  } catch (error) {
+  if (error) {
     console.error('Error fetching product categories:', error);
-    toast.error('Erreur lors du chargement des catégories');
     return [];
   }
-}
 
-// Alias for the fetchProductCategories function
-export const fetchCategories = fetchProductCategories;
+  return (data || []) as ProductCategory[];
+};
 
-// Create a product category
-export async function createProductCategory(category: Partial<ProductCategory>) {
-  try {
-    const { data, error } = await supabase
-      .from('product_categories')
-      .insert({
-        name: category.name,
-        color: category.color
-      })
-      .select();
-    
-    if (error) throw error;
-    
-    toast.success('Catégorie créée avec succès');
-    return data[0] as ProductCategory;
-  } catch (error) {
-    console.error('Error creating category:', error);
-    toast.error('Erreur lors de la création de la catégorie');
-    return null;
+// Function to create a category
+export const createCategory = async (category: Omit<ProductCategory, 'id' | 'created_at'>): Promise<{ data: ProductCategory | null, error: any }> => {
+  const { data, error } = await supabase
+    .from('product_categories')
+    .insert({
+      ...category,
+      id: uuidv4()
+    })
+    .select('*')
+    .single();
+
+  return { 
+    data: data as ProductCategory | null, 
+    error 
+  };
+};
+
+// Function to delete a product
+export const deleteProduct = async (id: string): Promise<{ error: any }> => {
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id);
+
+  return { error };
+};
+
+// Function to update a product
+export const updateProduct = async (id: string, product: Partial<Product>): Promise<{ data: Product | null, error: any }> => {
+  // Convert price string to cents for storage if price is provided
+  const updates: any = { ...product };
+  if (product.price) {
+    updates.price_cents = parseInt((parseFloat(product.price) * 100).toString());
+    delete updates.price;
   }
-}
 
-// Alias for the createProductCategory function
-export const createCategory = createProductCategory;
+  const { data, error } = await supabase
+    .from('products')
+    .update(updates)
+    .eq('id', id)
+    .select('*')
+    .single();
 
-// Update a product category
-export async function updateProductCategory(id: string, category: Partial<ProductCategory>) {
-  try {
-    const { data, error } = await supabase
-      .from('product_categories')
-      .update({
-        name: category.name,
-        color: category.color,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select();
-    
-    if (error) throw error;
-    
-    toast.success('Catégorie mise à jour avec succès');
-    return data[0] as ProductCategory;
-  } catch (error) {
-    console.error('Error updating category:', error);
-    toast.error('Erreur lors de la mise à jour de la catégorie');
-    return null;
+  // Transform back to our Product interface
+  let transformedProduct: Product | null = null;
+  if (data) {
+    transformedProduct = {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      price: ((data.price_cents || 0) / 100).toFixed(2),
+      category: data.category_id,
+      is_recurring: data.is_recurring || false,
+      recurring_interval: data.recurring_interval,
+      recurring_period: data.recurring_period,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
   }
-}
 
-// Alias for the updateProductCategory function
-export const updateCategory = updateProductCategory;
+  return { 
+    data: transformedProduct, 
+    error 
+  };
+};
 
-// Delete a product category
-export async function deleteProductCategory(id: string) {
-  try {
-    // First update products that use this category to have null category_id
-    await supabase
-      .from('stripe_products')
-      .update({ category_id: null })
-      .eq('category_id', id);
-    
-    // Then delete the category
-    const { error } = await supabase
-      .from('product_categories')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
-    
-    toast.success('Catégorie supprimée avec succès');
-    return true;
-  } catch (error) {
-    console.error('Error deleting category:', error);
-    toast.error('Erreur lors de la suppression de la catégorie');
-    return false;
-  }
-}
+// Function to delete a category
+export const deleteCategory = async (id: string): Promise<{ error: any }> => {
+  const { error } = await supabase
+    .from('product_categories')
+    .delete()
+    .eq('id', id);
 
-// Alias for the deleteProductCategory function
-export const deleteCategory = deleteProductCategory;
+  return { error };
+};

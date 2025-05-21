@@ -9,7 +9,6 @@ import { SearchBar } from "./components/SearchBar";
 import Dashboard from "./pages/Dashboard";
 import Invoicing from "./pages/Invoicing";
 import Invoices from "./pages/Invoices";
-import Quotes from "./pages/Quotes";
 import Clients from "./pages/Clients";
 import ClientDetails from "./pages/ClientDetails";
 import ProductsServices from "./pages/ProductsServices";
@@ -31,7 +30,6 @@ import { Menu } from "lucide-react";
 import { NotificationBell } from "./components/NotificationBell";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { MobileNavigation } from "./components/MobileNavigation";
-import QuoteView from './pages/QuoteView';
 import { QuickAction } from "./components/QuickAction";
 
 const queryClient = new QueryClient();
@@ -107,7 +105,6 @@ const AppRoutes = () => {
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/invoicing" element={<ProtectedRoute><Invoicing /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-        <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
         <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
         <Route path="/clients/:id" element={<ProtectedRoute><ClientDetails /></ProtectedRoute>} />
         <Route path="/products" element={<ProtectedRoute><ProductsServices /></ProtectedRoute>} />
@@ -117,7 +114,6 @@ const AppRoutes = () => {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/profile/edit" element={<ProtectedRoute><ProfileEdit /></ProtectedRoute>} />
         <Route path="/stripe/callback" element={<StripeCallback />} />
-        <Route path="/quote/:id" element={<QuoteView />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </MainLayout>
