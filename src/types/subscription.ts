@@ -1,40 +1,28 @@
 
-export type SubscriptionStatus = 'active' | 'paused' | 'canceled' | 'expired';
-
 export interface Subscription {
   id: string;
-  name?: string;
-  description?: string | null;
   client_id: string;
-  client_name?: string;
-  client_email?: string;
   start_date: string;
-  end_date?: string | null;
-  recurring_interval: 'day' | 'week' | 'month' | 'quarter' | 'semester' | 'year' | 'custom';
+  end_date?: string;
+  next_invoice_date?: string;
+  recurring_interval: 'month' | 'week' | 'day' | 'quarter' | 'semester' | 'year' | 'custom';
   recurring_interval_count: number;
-  custom_days?: number | null;
-  next_invoice_date: string;
-  last_invoice_date?: string | null;
-  status: SubscriptionStatus;
+  status: 'active' | 'canceled' | 'expired' | 'paused';
   notes?: string;
-  metadata?: Record<string, any> | null;
+  items: SubscriptionItem[];
   created_at: string;
   updated_at: string;
-  items?: SubscriptionItem[];
+  client?: any;
 }
 
 export interface SubscriptionItem {
   id: string;
   subscription_id: string;
   product_id: string;
-  product?: any;
   quantity: number;
   unit_price: number;
-  description?: string;
-  price_cents?: number;
-  tax_rate?: number | null;
-  created_at?: string;
-  updated_at?: string;
+  description: string;
+  product?: any;
 }
 
 export interface SubscriptionFormProps {

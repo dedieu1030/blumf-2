@@ -1,530 +1,195 @@
-
-import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { checkTableExists } from '@/utils/databaseTableUtils';
-
-// Define Product type
-export interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  price_cents: number;
-  price?: string | number;
-  category_id?: string;
-  category_name?: string;
-  is_recurring: boolean;
-  recurring_interval?: string;
-  recurring_interval_count?: number;
-  created_at?: string;
-  updated_at?: string;
-  user_id?: string;
-  // Additional fields needed by components
-  product_type?: 'product' | 'service' | string;
-  currency?: string;
-  tax_rate?: number;
-  active?: boolean;
-}
-
-// Define Category type
-export interface ProductCategory {
-  id: string;
-  name: string;
-  description?: string;
-  color?: string;
-  created_at?: string;
-  updated_at?: string;
-  user_id?: string;
-}
-
-// Helper function to format price
-export const formatPrice = (price_cents?: number | null, currency: string = 'EUR'): string => {
-  if (!price_cents && price_cents !== 0) return '—';
-  const amount = (price_cents / 100).toFixed(2);
-  
-  const currencySymbol = {
-    'EUR': '€',
-    'USD': '$',
-    'GBP': '£',
-  }[currency] || currency;
-  
-  return `${amount} ${currencySymbol}`;
-};
-
-// Map old function names to new ones for backwards compatibility
-export const getProducts = fetchProducts;
-export const getCategories = fetchCategories;
+import { supabase } from '@/integrations/supabase/client';
+import { Product } from '@/types/product';
 
 // Fetch all products
 export async function fetchProducts(): Promise<Product[]> {
   try {
-    // Attempt to fetch from actual table if it exists
-    try {
-      // Check if the table exists before querying
-      const tableExists = await checkTableExists('products');
-      if (!tableExists) {
-        return getMockProducts();
-      }
-
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, product_categories(name)');
-
-      if (error) {
-        console.error('Error fetching products:', error);
-        return getMockProducts();
-      }
-
-      // Convert the data to our Product type
-      return data.map((item: any): Product => ({
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        price: (item.price_cents / 100).toFixed(2),
-        price_cents: item.price_cents,
-        category_id: item.category_id,
-        category_name: item.product_categories?.name,
-        is_recurring: item.is_recurring || false,
-        recurring_interval: item.recurring_interval,
-        recurring_interval_count: item.recurring_interval_count ?? 1,
-        product_type: item.product_type ?? 'service',
-        currency: item.currency ?? 'EUR',
-        tax_rate: item.tax_rate ?? 0,
-        active: item.active ?? true,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        user_id: item.user_id
-      }));
-    } catch (err) {
-      console.error('Error in product fetch:', err);
-      return getMockProducts();
+    const tableExists = await checkTableExists('products');
+    
+    if (!tableExists) {
+      // Return mock data for demo purposes
+      return [
+        {
+          id: '1',
+          name: 'Développement web',
+          description: 'Services de développement de site web',
+          price: 1200,
+          category: 'Services',
+          sku: 'DEV-WEB-001',
+          tax_rate: 20,
+          created_at: '2023-05-10T08:00:00Z',
+          updated_at: '2023-05-10T08:00:00Z',
+          active: true
+        },
+        {
+          id: '2',
+          name: 'Maintenance mensuelle',
+          description: 'Service de maintenance de site web',
+          price: 250,
+          category: 'Abonnements',
+          sku: 'MAINT-001',
+          tax_rate: 20,
+          created_at: '2023-05-15T10:30:00Z',
+          updated_at: '2023-05-15T10:30:00Z',
+          active: true
+        }
+      ];
     }
+    
+    // If table exists, fetch actual data
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching products:", error);
+      return [];
+    }
+    
+    return data.map(product => ({
+      ...product,
+      price: typeof product.price === 'string' ? parseFloat(product.price) : product.price
+    })) as Product[];
   } catch (error) {
-    console.error('Unexpected error in product fetch:', error);
-    return getMockProducts();
+    console.error("Error in fetchProducts:", error);
+    return [];
   }
 }
 
-// Fetch product categories
-export async function fetchCategories(): Promise<ProductCategory[]> {
+// Get product by ID
+export async function getProduct(id: string): Promise<Product | null> {
   try {
-    // Attempt to fetch from actual table if it exists
-    try {
-      const tableExists = await checkTableExists('product_categories');
-      if (!tableExists) {
-        return getMockCategories();
-      }
+    const tableExists = await checkTableExists('products');
 
-      const { data, error } = await supabase
-        .from('product_categories')
-        .select('*');
-
-      if (error) {
-        console.error('Error fetching categories:', error);
-        return getMockCategories();
-      }
-
-      return data;
-    } catch (err) {
-      console.error('Error in category fetch:', err);
-      return getMockCategories();
+    if (!tableExists) {
+      // Return mock data for demo
+      const mockProducts = await fetchProducts();
+      return mockProducts.find(product => product.id === id) || null;
     }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching product:", error);
+      return null;
+    }
+
+    return {
+      ...data,
+      price: typeof data.price === 'string' ? parseFloat(data.price) : data.price
+    } as Product;
   } catch (error) {
-    console.error('Unexpected error in category fetch:', error);
-    return getMockCategories();
+    console.error("Error in getProduct:", error);
+    return null;
   }
 }
 
 // Create a new product
-export const createProduct = async (product: Partial<Product>): Promise<Product> => {
+export async function createProduct(product: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Product | null, error: any }> {
   try {
-    if (!product.name) {
-      throw new Error("Product name is required");
-    }
-    
-    const priceCents = typeof product.price === 'string'
-      ? Math.round(parseFloat(product.price) * 100)
-      : product.price ? Math.round(product.price * 100) : 0;
+    const tableExists = await checkTableExists('products');
 
-    const newProduct = {
+    if (!tableExists) {
+      console.log('Products table does not exist, returning mock success');
+      const mockProduct: Product = {
+        id: uuidv4(),
+        ...product,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as Product;
+      return { data: mockProduct, error: null };
+    }
+
+    const newProduct: Product = {
       id: uuidv4(),
-      name: product.name,
-      description: product.description || '',
-      price_cents: priceCents,
-      category_id: product.category_id || null,
-      is_recurring: product.is_recurring || false,
-      recurring_interval: product.recurring_interval || null,
-      recurring_interval_count: product.recurring_interval_count ?? 1,
-      product_type: product.product_type ?? 'service',
-      currency: product.currency ?? 'EUR',
-      tax_rate: product.tax_rate ?? 0,
-      active: product.active ?? true,
+      ...product,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      user_id: 'mock-user-id'
-    };
+    } as Product;
 
-    // Attempt to insert into actual table if it exists
-    try {
-      const tableExists = await checkTableExists('products');
-      if (!tableExists) {
-        // Return mock response with the data we would have inserted
-        return {
-          ...newProduct,
-          price: (priceCents / 100).toFixed(2),
-        };
-      }
+    const { data, error } = await supabase
+      .from('products')
+      .insert([newProduct])
+      .select()
+      .single();
 
-      const { data, error } = await supabase
-        .from('products')
-        .insert([newProduct])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating product:', error);
-        // Return mock response with the data we would have inserted
-        return {
-          ...newProduct,
-          price: (priceCents / 100).toFixed(2),
-        };
-      }
-
-      return {
-        ...data,
-        price: (data.price_cents / 100).toFixed(2),
-      };
-    } catch (err) {
-      console.error('Error in product creation:', err);
-      // Return mock response
-      return {
-        ...newProduct,
-        price: (priceCents / 100).toFixed(2),
-      };
+    if (error) {
+      console.error("Error creating product:", error);
+      return { data: null, error };
     }
+
+    return { data: data as Product, error: null };
   } catch (error) {
-    console.error('Unexpected error in product creation:', error);
-    throw error;
+    console.error("Error in createProduct:", error);
+    return { data: null, error: error };
   }
-};
-
-// Update an existing product
-export const updateProduct = async (id: string, updates: Partial<Product>): Promise<Product> => {
-  try {
-    let updatedFields: any = {
-      name: updates.name,
-      description: updates.description,
-      category_id: updates.category_id,
-      is_recurring: updates.is_recurring,
-      recurring_interval: updates.recurring_interval,
-      recurring_interval_count: updates.recurring_interval_count,
-      product_type: updates.product_type,
-      currency: updates.currency,
-      tax_rate: updates.tax_rate,
-      active: updates.active,
-      updated_at: new Date().toISOString()
-    };
-
-    if (updates.price !== undefined) {
-      updatedFields.price_cents = typeof updates.price === 'string'
-        ? Math.round(parseFloat(updates.price) * 100)
-        : Math.round(Number(updates.price) * 100);
-    }
-
-    // Attempt to update in actual table if it exists
-    try {
-      const tableExists = await checkTableExists('products');
-      if (!tableExists) {
-        // Return mock response
-        return {
-          id,
-          ...updatedFields,
-          price: updatedFields.price_cents ? (updatedFields.price_cents / 100).toFixed(2) : '0.00',
-          is_recurring: updatedFields.is_recurring || false,
-        };
-      }
-
-      const { data, error } = await supabase
-        .from('products')
-        .update(updatedFields)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating product:', error);
-        // Return mock response
-        return {
-          id,
-          ...updatedFields,
-          price: updatedFields.price_cents ? (updatedFields.price_cents / 100).toFixed(2) : '0.00',
-          is_recurring: updatedFields.is_recurring || false,
-        };
-      }
-
-      return {
-        ...data,
-        price: (data.price_cents / 100).toFixed(2),
-      };
-    } catch (err) {
-      console.error('Error in product update:', err);
-      // Return mock response
-      return {
-        id,
-        ...updatedFields,
-        price: updatedFields.price_cents ? (updatedFields.price_cents / 100).toFixed(2) : '0.00',
-        is_recurring: updatedFields.is_recurring || false,
-      };
-    }
-  } catch (error) {
-    console.error('Unexpected error in product update:', error);
-    throw error;
-  }
-};
-
-// Delete a product
-export const deleteProduct = async (id: string): Promise<boolean> => {
-  try {
-    // Attempt to delete from actual table if it exists
-    try {
-      const tableExists = await checkTableExists('products');
-      if (!tableExists) {
-        return true; // Mock success
-      }
-
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting product:', error);
-        return true; // Mock success
-      }
-
-      return true;
-    } catch (err) {
-      console.error('Error in product deletion:', err);
-      return true; // Mock success
-    }
-  } catch (error) {
-    console.error('Unexpected error in product deletion:', error);
-    return false;
-  }
-};
-
-// Create a new category
-export const createCategory = async (category: Omit<ProductCategory, 'id' | 'created_at' | 'updated_at'>): Promise<ProductCategory> => {
-  try {
-    const newCategory = {
-      id: uuidv4(),
-      name: category.name,
-      description: category.description || '',
-      color: category.color || '#6366F1',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      user_id: 'mock-user-id'
-    };
-
-    // Attempt to insert into actual table if it exists
-    try {
-      const tableExists = await checkTableExists('product_categories');
-      if (!tableExists) {
-        return newCategory; // Return mock response
-      }
-
-      const { data, error } = await supabase
-        .from('product_categories')
-        .insert([newCategory])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating category:', error);
-        return newCategory; // Return mock response
-      }
-
-      return data;
-    } catch (err) {
-      console.error('Error in category creation:', err);
-      return newCategory; // Return mock response
-    }
-  } catch (error) {
-    console.error('Unexpected error in category creation:', error);
-    throw error;
-  }
-};
-
-// Update a category
-export const updateCategory = async (id: string, updates: Partial<ProductCategory>): Promise<ProductCategory> => {
-  try {
-    const updatedFields = {
-      ...updates,
-      updated_at: new Date().toISOString()
-    };
-
-    // Attempt to update in actual table if it exists
-    try {
-      const tableExists = await checkTableExists('product_categories');
-      if (!tableExists) {
-        // Return mock response
-        return {
-          id,
-          name: updates.name || 'Unknown',
-          description: updates.description,
-          color: updates.color,
-          updated_at: updatedFields.updated_at
-        };
-      }
-
-      const { data, error } = await supabase
-        .from('product_categories')
-        .update(updatedFields)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating category:', error);
-        // Return mock response
-        return {
-          id,
-          name: updates.name || 'Unknown',
-          description: updates.description,
-          color: updates.color,
-          updated_at: updatedFields.updated_at
-        };
-      }
-
-      return data;
-    } catch (err) {
-      console.error('Error in category update:', err);
-      // Return mock response
-      return {
-        id,
-        name: updates.name || 'Unknown',
-        description: updates.description,
-        color: updates.color,
-        updated_at: updatedFields.updated_at
-      };
-    }
-  } catch (error) {
-    console.error('Unexpected error in category update:', error);
-    throw error;
-  }
-};
-
-// Delete a category
-export const deleteCategory = async (id: string): Promise<boolean> => {
-  try {
-    // Attempt to delete from actual table if it exists
-    try {
-      const tableExists = await checkTableExists('product_categories');
-      if (!tableExists) {
-        return true; // Mock success
-      }
-
-      const { error } = await supabase
-        .from('product_categories')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting category:', error);
-        return true; // Mock success
-      }
-
-      return true;
-    } catch (err) {
-      console.error('Error in category deletion:', err);
-      return true; // Mock success
-    }
-  } catch (error) {
-    console.error('Unexpected error in category deletion:', error);
-    return false;
-  }
-};
-
-// Mock data functions
-function getMockProducts(): Product[] {
-  return [
-    {
-      id: '1',
-      name: 'Consultation juridique',
-      description: 'Consultation juridique standard (1 heure)',
-      price: '150.00',
-      price_cents: 15000,
-      category_id: '1',
-      category_name: 'Services juridiques',
-      is_recurring: false,
-      product_type: 'service',
-      currency: 'EUR',
-      tax_rate: 20,
-      active: true,
-      created_at: '2023-01-01T12:00:00Z',
-      updated_at: '2023-01-01T12:00:00Z'
-    },
-    {
-      id: '2',
-      name: 'Rédaction de contrat',
-      description: 'Rédaction de contrat standard',
-      price: '350.00',
-      price_cents: 35000,
-      category_id: '1',
-      category_name: 'Services juridiques',
-      is_recurring: false,
-      product_type: 'service',
-      currency: 'EUR',
-      tax_rate: 20,
-      active: true,
-      created_at: '2023-01-02T12:00:00Z',
-      updated_at: '2023-01-02T12:00:00Z'
-    },
-    {
-      id: '3',
-      name: 'Abonnement juridique',
-      description: 'Accès à des consultations mensuelles',
-      price: '200.00',
-      price_cents: 20000,
-      category_id: '2',
-      category_name: 'Abonnements',
-      is_recurring: true,
-      recurring_interval: 'month',
-      recurring_interval_count: 1,
-      product_type: 'service',
-      currency: 'EUR',
-      tax_rate: 20,
-      active: true,
-      created_at: '2023-01-03T12:00:00Z',
-      updated_at: '2023-01-03T12:00:00Z'
-    }
-  ];
 }
 
-function getMockCategories(): ProductCategory[] {
-  return [
-    {
-      id: '1',
-      name: 'Services juridiques',
-      description: 'Consultations et services juridiques divers',
-      color: '#4F46E5',
-      created_at: '2023-01-01T10:00:00Z',
-      updated_at: '2023-01-01T10:00:00Z'
-    },
-    {
-      id: '2',
-      name: 'Abonnements',
-      description: 'Services récurrents et abonnements',
-      color: '#10B981',
-      created_at: '2023-01-01T10:30:00Z',
-      updated_at: '2023-01-01T10:30:00Z'
-    },
-    {
-      id: '3',
-      name: 'Documents',
-      description: 'Rédaction et validation de documents',
-      color: '#F59E0B',
-      created_at: '2023-01-01T11:00:00Z',
-      updated_at: '2023-01-01T11:00:00Z'
+// Update an existing product
+export async function updateProduct(id: string, updates: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at'>>): Promise<{ data: Product | null, error: any }> {
+  try {
+    const tableExists = await checkTableExists('products');
+
+    if (!tableExists) {
+      console.log('Products table does not exist, returning mock success');
+      const mockProduct: Product = {
+        id,
+        ...updates,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as Product;
+      return { data: mockProduct, error: null };
     }
-  ];
+
+    const { data, error } = await supabase
+      .from('products')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating product:", error);
+      return { data: null, error };
+    }
+
+    return { data: data as Product, error: null };
+  } catch (error) {
+    console.error("Error in updateProduct:", error);
+    return { data: null, error: error };
+  }
+}
+
+// Delete a product
+export async function deleteProduct(id: string): Promise<boolean> {
+  try {
+    const tableExists = await checkTableExists('products');
+
+    if (!tableExists) {
+      console.log('Products table does not exist, returning mock success');
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error("Error deleting product:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in deleteProduct:", error);
+    return false;
+  }
 }

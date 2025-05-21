@@ -1,343 +1,160 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { getMockInvoices } from './mockDataService';
+import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
-import { checkTableExists } from '@/utils/databaseTableUtils';
+import { ReminderSchedule, ReminderTrigger } from "@/types/invoice";
 
-// Define types
-export interface ReminderResult {
-  success: boolean;
-  data?: {
-    invoice_id: string;
-    reminder_id: string;
-    sent_at: string;
-    status: string;
-  };
-  error?: string;
-}
+const REMINDER_SCHEDULES_TABLE = 'reminder_schedules';
+const REMINDER_RULES_TABLE = 'reminder_rules';
 
-/**
- * Send a reminder for an invoice
- */
-export async function sendReminderForInvoice(invoiceId: string): Promise<ReminderResult> {
+// Fonction pour récupérer toutes les planifications de rappels
+export async function getReminderSchedules(): Promise<ReminderSchedule[]> {
   try {
-    // Try to call the Supabase Edge Function
-    try {
-      const { data, error } = await supabase.functions.invoke('send-reminder', {
-        body: { invoiceId },
-      });
-      
-      if (error) {
-        console.error('Error calling send-reminder function:', error);
-        return { success: false, error: error.message };
+    const { data: schedulesData, error: schedulesError } = await supabase
+      .from(REMINDER_SCHEDULES_TABLE)
+      .select('*');
+
+    if (schedulesError) {
+      console.error('Error fetching reminder schedules:', schedulesError);
+      return [];
+    }
+
+    const schedules = [];
+
+    for (const schedule of schedulesData || []) {
+      const { data: rulesData, error: rulesError } = await supabase
+        .from(REMINDER_RULES_TABLE)
+        .select('*')
+        .eq('schedule_id', schedule.id);
+
+      if (rulesError) {
+        console.error(`Error fetching reminder rules for schedule ${schedule.id}:`, rulesError);
+        continue;
       }
-      
-      return { 
-        success: true, 
-        data: {
-          invoice_id: invoiceId,
-          reminder_id: data?.reminderHistory?.id || 'mock-reminder-id',
-          sent_at: new Date().toISOString(),
-          status: 'sent'
-        }
-      };
-      
-    } catch (error) {
-      console.error('Error in sendReminderForInvoice, falling back to mock:', error);
-      
-      // Fallback to mock data
-      return { 
-        success: true, 
-        data: {
-          invoice_id: invoiceId,
-          reminder_id: 'mock-reminder-id',
-          sent_at: new Date().toISOString(),
-          status: 'sent'
-        }
-      };
-    }
-  } catch (error) {
-    console.error('Unexpected error in sendReminderForInvoice:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: errorMessage };
-  }
-}
 
-// Types for reminder schedules
-export interface ReminderTrigger {
-  id: string;
-  daysBefore: number; // Positive: before due date, Negative: after due date (overdue)
-  message: string;
-  enabled: boolean;
-  triggerType: 'days_before_due' | 'days_after_due' | 'days_after_previous_reminder';
-  triggerValue: number;
-  emailSubject: string;
-  emailBody: string;
-}
+      const triggers: ReminderTrigger[] = (rulesData || []).map((rule: any) => ({
+        id: rule.id,
+        daysBefore: rule.days_before,
+        message: rule.message || '',
+        enabled: rule.enabled || true,
+        triggerType: rule.trigger_type || 'days_before_due',
+        triggerValue: rule.trigger_value || 0,
+        emailSubject: rule.email_subject || 'Rappel de facture',
+        emailBody: rule.email_body || 'Ceci est un rappel pour votre facture'
+      }));
 
-export interface ReminderSchedule {
-  id: string;
-  name: string;
-  enabled: boolean;
-  isDefault: boolean;
-  is_default?: boolean;
-  triggers: ReminderTrigger[];
-}
-
-export interface ReminderScheduleResult {
-  success: boolean;
-  schedules?: ReminderSchedule[];
-  error?: string;
-}
-
-// Export mock functions for testing
-export function getMockReminders(): ReminderSchedule[] {
-  return [
-    {
-      id: '1',
-      name: 'Default reminder schedule',
-      enabled: true,
-      isDefault: true,
-      triggers: [
-        { 
-          id: '1', 
-          daysBefore: 7, 
-          message: 'Your invoice is due in 7 days', 
-          enabled: true, 
-          triggerType: 'days_before_due', 
-          triggerValue: 7, 
-          emailSubject: 'Invoice reminder', 
-          emailBody: 'Your invoice is due in 7 days' 
-        },
-        { 
-          id: '2', 
-          daysBefore: 3, 
-          message: 'Please remember to pay your invoice', 
-          enabled: true, 
-          triggerType: 'days_before_due', 
-          triggerValue: 3, 
-          emailSubject: 'Invoice reminder', 
-          emailBody: 'Please remember to pay your invoice' 
-        },
-        { 
-          id: '3', 
-          daysBefore: 0, 
-          message: 'Your invoice is due today', 
-          enabled: true, 
-          triggerType: 'days_after_due', 
-          triggerValue: 0, 
-          emailSubject: 'Invoice reminder', 
-          emailBody: 'Your invoice is due today' 
-        },
-        { 
-          id: '4', 
-          daysBefore: -3, 
-          message: 'Your invoice is 3 days overdue', 
-          enabled: true, 
-          triggerType: 'days_after_due', 
-          triggerValue: 3, 
-          emailSubject: 'Invoice reminder', 
-          emailBody: 'Your invoice is 3 days overdue' 
-        }
-      ]
-    }
-  ];
-}
-
-/**
- * Fetch reminder schedules
- */
-export async function getReminderSchedules(): Promise<ReminderScheduleResult> {
-  try {
-    // Check if table exists
-    const tableExists = await checkTableExists('reminder_schedules');
-    if (!tableExists) {
-      return { 
-        success: true, 
-        schedules: getMockReminders() 
-      };
-    }
-    
-    const { data, error } = await supabase
-      .from('reminder_schedules')
-      .select('*, reminder_rules(*)');
-    
-    if (error) {
-      console.error('Error fetching reminder schedules:', error);
-      return { 
-        success: false, 
-        error: error.message,
-        schedules: getMockReminders() // Fallback to mock data
-      };
-    }
-    
-    // Transform data to match ReminderSchedule interface
-    const schedules: ReminderSchedule[] = data.map((schedule: any) => {
-      return {
+      schedules.push({
         id: schedule.id,
-        name: schedule.name,
-        enabled: schedule.enabled,
+        name: schedule.name || 'Planification de rappel',
         isDefault: schedule.is_default || false,
-        is_default: schedule.is_default || false,
-        triggers: (schedule.reminder_rules || []).map((rule: any) => ({
-          id: rule.id,
-          daysBefore: rule.days_before_due || 0,
-          message: rule.message || '',
-          enabled: rule.enabled,
-          triggerType: rule.trigger_type as 'days_before_due' | 'days_after_due' | 'days_after_previous_reminder' || 'days_before_due',
-          triggerValue: rule.trigger_value || 0,
-          emailSubject: rule.email_subject || '',
-          emailBody: rule.email_body || ''
-        }))
-      };
-    });
-    
-    return {
-      success: true,
-      schedules
-    };
+        enabled: schedule.enabled || true,
+        triggers
+      });
+    }
+
+    return schedules;
   } catch (error) {
-    console.error('Unexpected error in getReminderSchedules:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { 
-      success: false, 
-      error: errorMessage,
-      schedules: getMockReminders() // Fallback to mock data
-    };
+    console.error('Error in getReminderSchedules:', error);
+    return [];
   }
 }
 
-/**
- * Save reminder schedule
- */
+// Fonction pour enregistrer une planification de rappel
 export async function saveReminderSchedule(schedule: ReminderSchedule): Promise<{ success: boolean; error?: string }> {
   try {
-    // Check if table exists
-    const tableExists = await checkTableExists('reminder_schedules');
-    if (!tableExists) {
-      // Just pretend it worked with mock data
-      return { success: true };
-    }
-    
-    const isNew = !schedule.id || schedule.id === "";
+    const isNew = !schedule.id || schedule.id.startsWith('new-');
     const scheduleId = isNew ? uuidv4() : schedule.id;
-    
-    // Prepare schedule data
+
     const scheduleData = {
       id: scheduleId,
       name: schedule.name,
-      enabled: schedule.enabled,
-      is_default: schedule.isDefault || false,
-      updated_at: new Date().toISOString(),
-      ...(isNew ? { created_at: new Date().toISOString() } : {})
+      is_default: schedule.isDefault,
+      enabled: schedule.enabled
     };
-    
-    // Start a transaction
-    const { error: scheduleError } = await (isNew ? 
-      supabase.from('reminder_schedules').insert([scheduleData]) :
-      supabase.from('reminder_schedules').update(scheduleData).eq('id', scheduleId)
-    );
-    
+
+    // Insérer ou mettre à jour la planification
+    const { error: scheduleError } = isNew
+      ? await supabase.from(REMINDER_SCHEDULES_TABLE).insert(scheduleData)
+      : await supabase
+          .from(REMINDER_SCHEDULES_TABLE)
+          .update(scheduleData)
+          .eq('id', scheduleId);
+
     if (scheduleError) {
       console.error('Error saving reminder schedule:', scheduleError);
       return { success: false, error: scheduleError.message };
     }
-    
-    // Now handle triggers if the schedule was successfully saved
-    if (schedule.triggers && schedule.triggers.length > 0) {
-      // First delete existing rules if updating
-      if (!isNew) {
-        const { error: deleteError } = await supabase
-          .from('reminder_rules')
-          .delete()
-          .eq('schedule_id', scheduleId);
-        
-        if (deleteError) {
-          console.error('Error deleting existing reminder rules:', deleteError);
-          return { success: false, error: deleteError.message };
-        }
+
+    // Supprimer les anciennes règles si c'est une mise à jour
+    if (!isNew) {
+      const { error: deleteError } = await supabase
+        .from(REMINDER_RULES_TABLE)
+        .delete()
+        .eq('schedule_id', scheduleId);
+
+      if (deleteError) {
+        console.error('Error deleting existing reminder rules:', deleteError);
       }
-      
-      // Then insert new rules
-      const rulesData = schedule.triggers.map(trigger => ({
+    }
+
+    // Insérer les nouvelles règles
+    for (const trigger of schedule.triggers) {
+      const ruleData = {
         id: uuidv4(),
         schedule_id: scheduleId,
-        days_before_due: trigger.daysBefore,
+        days_before: trigger.daysBefore,
         message: trigger.message,
         enabled: trigger.enabled,
         trigger_type: trigger.triggerType,
         trigger_value: trigger.triggerValue,
-        email_subject: trigger.emailSubject || '',
-        email_body: trigger.emailBody || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }));
-      
-      const { error: rulesError } = await supabase
-        .from('reminder_rules')
-        .insert(rulesData);
-      
-      if (rulesError) {
-        console.error('Error saving reminder rules:', rulesError);
-        return { success: false, error: rulesError.message };
+        email_subject: trigger.emailSubject,
+        email_body: trigger.emailBody
+      };
+
+      const { error: ruleError } = await supabase
+        .from(REMINDER_RULES_TABLE)
+        .insert(ruleData);
+
+      if (ruleError) {
+        console.error('Error saving reminder rule:', ruleError);
+        return { success: false, error: ruleError.message };
       }
     }
-    
+
     return { success: true };
   } catch (error) {
-    console.error('Unexpected error in saveReminderSchedule:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: errorMessage };
+    console.error('Error in saveReminderSchedule:', error);
+    return { success: false, error: 'An unexpected error occurred' };
   }
 }
 
-/**
- * Delete reminder schedule
- */
-export async function deleteReminderSchedule(scheduleId: string): Promise<{ success: boolean; error?: string }> {
+// Fonction pour supprimer une planification de rappel
+export async function deleteReminderSchedule(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    // Check if table exists
-    const tableExists = await checkTableExists('reminder_schedules');
-    if (!tableExists) {
-      // Just pretend it worked with mock data
-      return { success: true };
-    }
-    
-    // First delete associated rules
+    // Supprimer d'abord les règles associées
     const { error: rulesError } = await supabase
-      .from('reminder_rules')
+      .from(REMINDER_RULES_TABLE)
       .delete()
-      .eq('schedule_id', scheduleId);
-    
+      .eq('schedule_id', id);
+
     if (rulesError) {
       console.error('Error deleting reminder rules:', rulesError);
       return { success: false, error: rulesError.message };
     }
-    
-    // Then delete the schedule
+
+    // Puis supprimer la planification
     const { error: scheduleError } = await supabase
-      .from('reminder_schedules')
+      .from(REMINDER_SCHEDULES_TABLE)
       .delete()
-      .eq('id', scheduleId);
-    
+      .eq('id', id);
+
     if (scheduleError) {
       console.error('Error deleting reminder schedule:', scheduleError);
       return { success: false, error: scheduleError.message };
     }
-    
+
     return { success: true };
   } catch (error) {
-    console.error('Unexpected error in deleteReminderSchedule:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: errorMessage };
+    console.error('Error in deleteReminderSchedule:', error);
+    return { success: false, error: 'An unexpected error occurred' };
   }
-}
-
-/**
- * Fetch reminder schedules (alias for getReminderSchedules for backward compatibility)
- */
-export async function fetchReminderSchedules(): Promise<ReminderSchedule[]> {
-  const result = await getReminderSchedules();
-  return result.schedules || getMockReminders();
 }

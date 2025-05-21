@@ -1,17 +1,14 @@
 
 export interface Client {
   id: string;
-  name: string;
-  client_name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  notes?: string;
-  reference_number?: string;
-  user_id?: string;
+  client_name: string;
+  name?: string; // Pour compatibilité avec d'autres composants  
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+  created_at?: string;
+  updated_at?: string;
   company_id?: string;
-  group_id?: string;
-  created_at: string;
-  updated_at: string;
-  categories?: string[];
+  reference_number?: string;
 }

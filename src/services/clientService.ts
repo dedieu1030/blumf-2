@@ -1,240 +1,195 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { getMockClients } from "@/services/mockDataService";
 import { checkTableExists } from "@/utils/databaseTableUtils";
 import { Client } from "@/types/client";
 
-/**
- * Fetch all clients
- */
+// Fetch all clients
 export async function fetchClients(): Promise<Client[]> {
   try {
-    // Check if the clients table exists
     const tableExists = await checkTableExists('clients');
     
     if (!tableExists) {
-      console.log('Clients table does not exist, using mock data');
-      return getMockClients();
+      // Return mock data for demo purposes
+      return [
+        {
+          id: '1',
+          client_name: 'Acme Corporation',
+          name: 'Acme Corporation', // Pour compatibilité
+          email: 'contact@acme.com',
+          phone: '+33 1 23 45 67 89',
+          address: '123 Business Avenue, Paris',
+          notes: 'Important client with multiple projects',
+          created_at: '2023-06-15T10:00:00Z',
+          updated_at: '2023-07-20T14:30:00Z'
+        },
+        {
+          id: '2',
+          client_name: 'TechStart SAS',
+          name: 'TechStart SAS', // Pour compatibilité
+          email: 'info@techstart.fr',
+          phone: '+33 6 12 34 56 78',
+          address: '45 Innovation Street, Lyon',
+          notes: 'Startup client, flexible payment terms',
+          created_at: '2023-08-05T09:15:00Z',
+          updated_at: '2023-08-05T09:15:00Z'
+        },
+      ];
     }
     
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('client_name');
-      
-      if (error) throw error;
-      
-      return (data || []).map((client: any) => ({
-        id: client.id,
-        name: client.client_name || 'Unnamed Client',
-        client_name: client.client_name || '',
-        email: client.email || '',
-        phone: client.phone || '',
-        address: client.address || '',
-        notes: client.notes || '',
-        reference_number: client.reference_number || '',
-        company_id: client.company_id,
-        user_id: client.user_id || client.company_id,
-        group_id: client.group_id,
-        created_at: client.created_at || new Date().toISOString(),
-        updated_at: client.updated_at || new Date().toISOString()
-      })) as Client[];
-      
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      return getMockClients();
+    // If table exists, fetch actual data
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching clients:", error);
+      return [];
     }
+    
+    return data.map(client => ({
+      ...client,
+      name: client.client_name // Pour compatibilité
+    })) as Client[];
   } catch (error) {
-    console.error('Error in fetchClients:', error);
-    toast.error('Error loading clients');
-    return getMockClients();
+    console.error("Error in fetchClients:", error);
+    return [];
   }
 }
 
-/**
- * Fetch a single client by ID
- */
-export async function fetchClient(id: string): Promise<Client | null> {
+// Get client by ID
+export async function getClient(id: string): Promise<Client | null> {
   try {
-    // Check if the clients table exists
     const tableExists = await checkTableExists('clients');
     
     if (!tableExists) {
-      const mockClients = getMockClients();
-      return mockClients.find(c => c.id === id) || mockClients[0];
+      // Return mock data for demo
+      const mockClients = await fetchClients();
+      return mockClients.find(client => client.id === id) || null;
     }
     
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      
-      return {
-        id: data.id,
-        name: data.client_name || 'Unnamed Client',
-        client_name: data.client_name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        address: data.address || '',
-        notes: data.notes || '',
-        reference_number: data.reference_number || '',
-        company_id: data.company_id,
-        user_id: data.user_id || data.company_id,
-        group_id: data.group_id,
-        created_at: data.created_at || new Date().toISOString(),
-        updated_at: data.updated_at || new Date().toISOString()
-      } as Client;
-      
-    } catch (error) {
-      console.error('Error fetching client:', error);
-      const mockClients = getMockClients();
-      return mockClients.find(c => c.id === id) || mockClients[0];
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error("Error fetching client:", error);
+      return null;
     }
+    
+    return {
+      ...data,
+      name: data.client_name // Pour compatibilité
+    } as Client;
   } catch (error) {
-    console.error('Error in fetchClient:', error);
-    toast.error('Error loading client');
+    console.error("Error in getClient:", error);
     return null;
   }
 }
 
-/**
- * Create a new client
- */
-export async function createClient(clientData: Partial<Client>): Promise<{success: boolean, data?: Client, error?: string}> {
+// Create a new client
+export async function createClient(client: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Client | null, error: any }> {
   try {
-    // Check if the clients table exists
     const tableExists = await checkTableExists('clients');
     
     if (!tableExists) {
-      // Return a mock success
-      const mockClient = {
-        id: crypto.randomUUID(),
-        name: clientData.name || 'New Client',
-        client_name: clientData.name || 'New Client',
-        email: clientData.email || '',
-        phone: clientData.phone || '',
-        address: clientData.address || '',
-        notes: clientData.notes || '',
-        reference_number: clientData.reference_number || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      } as Client;
-      
-      return { success: true, data: mockClient };
+      console.log('Clients table does not exist, returning mock success');
+      return { 
+        data: {
+          id: 'new-client-id',
+          ...client,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          name: client.client_name
+        }, 
+        error: null 
+      };
     }
-    
-    // Prepare the client data for insertion
-    const clientToInsert = {
-      client_name: clientData.name,
-      email: clientData.email,
-      phone: clientData.phone,
-      address: clientData.address,
-      notes: clientData.notes,
-      reference_number: clientData.reference_number,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
     
     const { data, error } = await supabase
       .from('clients')
-      .insert([clientToInsert])
+      .insert([
+        { 
+          ...client,
+          name: client.client_name
+        }
+      ])
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating client:", error);
+      return { data: null, error };
+    }
     
     return { 
-      success: true, 
       data: {
         ...data,
-        name: data.client_name || 'Unnamed Client',
-        user_id: data.company_id
-      } as Client
+        name: data.client_name
+      }, 
+      error: null 
     };
   } catch (error) {
-    console.error('Error in createClient:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return { success: false, error: errorMessage };
+    console.error("Error in createClient:", error);
+    return { data: null, error: error };
   }
 }
 
-/**
- * Update an existing client
- */
-export async function updateClient(id: string, clientData: Partial<Client>): Promise<{success: boolean, data?: Client, error?: string}> {
+// Update an existing client
+export async function updateClient(id: string, updates: Partial<Client>): Promise<{ data: Client | null, error: any }> {
   try {
-    // Check if the clients table exists
     const tableExists = await checkTableExists('clients');
     
     if (!tableExists) {
-      // Return a mock success
+      console.log('Clients table does not exist, returning mock success');
+      
       const mockClient = {
         id,
-        name: clientData.name || 'Updated Client',
-        client_name: clientData.name || 'Updated Client',
-        email: clientData.email || '',
-        phone: clientData.phone || '',
-        address: clientData.address || '',
-        notes: clientData.notes || '',
-        reference_number: clientData.reference_number || '',
-        updated_at: new Date().toISOString()
+        ...updates,
+        updated_at: new Date().toISOString(),
+        name: updates.client_name || updates.name
       } as Client;
       
-      return { success: true, data: mockClient };
+      return { data: mockClient, error: null };
     }
-    
-    // Prepare the client data for update
-    const clientToUpdate = {
-      client_name: clientData.name || clientData.client_name,
-      email: clientData.email,
-      phone: clientData.phone,
-      address: clientData.address,
-      notes: clientData.notes,
-      reference_number: clientData.reference_number,
-      updated_at: new Date().toISOString()
-    };
     
     const { data, error } = await supabase
       .from('clients')
-      .update(clientToUpdate)
+      .update({ 
+        ...updates,
+        name: updates.client_name || updates.name
+      })
       .eq('id', id)
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error updating client:", error);
+      return { data: null, error };
+    }
     
     return { 
-      success: true, 
       data: {
         ...data,
-        name: data.client_name || 'Unnamed Client',
-        user_id: data.company_id
-      } as Client
+        name: data.client_name
+      }, 
+      error: null 
     };
   } catch (error) {
-    console.error('Error in updateClient:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return { success: false, error: errorMessage };
+    console.error("Error in updateClient:", error);
+    return { data: null, error: error };
   }
 }
 
-/**
- * Delete a client
- */
-export async function deleteClient(id: string): Promise<{success: boolean, error?: string}> {
+// Delete a client
+export async function deleteClient(id: string): Promise<boolean> {
   try {
-    // Check if the clients table exists
     const tableExists = await checkTableExists('clients');
     
     if (!tableExists) {
-      // Return a mock success
-      return { success: true };
+      console.log('Clients table does not exist, returning mock success');
+      return true;
     }
     
     const { error } = await supabase
@@ -242,12 +197,14 @@ export async function deleteClient(id: string): Promise<{success: boolean, error
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error deleting client:", error);
+      return false;
+    }
     
-    return { success: true };
+    return true;
   } catch (error) {
-    console.error('Error in deleteClient:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return { success: false, error: errorMessage };
+    console.error("Error in deleteClient:", error);
+    return false;
   }
 }
